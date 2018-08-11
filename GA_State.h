@@ -29,6 +29,7 @@ namespace opt
 		int worstIndex;                                                       // 适应度最差的个体位置
 		int bestIndex;                                                        // 适应度最好的个体位置
 
+
 		/* 构造函数*/
 		GA_State()
 			:stopTol(0),
