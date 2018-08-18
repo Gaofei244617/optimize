@@ -40,7 +40,7 @@ double test_Func2(double x, double y)
 
 int main()
 {	
-	//cout << getSec(Second(41.2)) << endl;
+	cout << getSec(Second(41.2)) << endl;
 	//cout << getSec(Minute(2)) << endl;
 	//cout << getSec(Hour(1)) << endl;
 	//cout << "Size of GA_State is: " << sizeof(GA_State) << endl;
@@ -50,11 +50,12 @@ int main()
 	a.setBoundary({ {0, 25}, {0, 35} });
 	a.setMaxGeneration(2000);
 	a.setThreadNum(4);
-
+	//a.setThreadNum(1);
+	
 	// profile
 	DWORD start = GetTickCount();
-	//a.single_start();
 	a.start();
+	a.wait_result();
 	DWORD end = GetTickCount();
 	cout << "The run time is:" << (end - start) / 1000.0 << " s" << endl;
 

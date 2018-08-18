@@ -14,7 +14,7 @@
 #include "GA_State.h"
 #include "cross_factor.h"
 #include "mutate_factor.h"
-#include "GA_ThreadPool.h"
+#include "GA_ThreadState.h"
 
 /*************Test*******************/
 #include <iostream>
@@ -43,9 +43,14 @@ namespace opt
 		double* fitArrayCache;                                                // fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
 		double mutateProb;                                                    // 个体变异概率,默认p = 0.1
 		double crossProb;                                                     // 个体交叉概率, 默认p = 0.6
+
+		std::vector<std::thread> vec_cross;                                   // 交叉线程组
+		std::vector<std::thread> vec_mut;                                     // 变异线程组
+		std::thread select_thread;                                            // 选择线程
+		std::thread single_thread;                                            // 单线程
 		
 		GA_State state;                                                       // 种群状态
-		GA_ThreadState thread_state;                                          // 
+		GA_ThreadState thread_state;                                          // 线程状态
 
 	public:
 		std::vector<Individual> bestIndivs;                                   // 记录每次迭代的最优个体	
@@ -74,7 +79,8 @@ namespace opt
 		void test();                                                       ///////////////////////////////
 
 		bool start();                                                         // 开始进化
-		bool single_start();
+		void wait_result();
+		//bool single_start();
 		bool pause();                                                         // 停止进化
 		bool proceed();                                                       // 继续迭代                                                    
 
@@ -314,6 +320,10 @@ namespace opt
 			thread_state.cross_flag.set_length(NUM);
 			thread_state.mut_flag.set_length(NUM);
 		}
+		else
+		{
+			throw std::string("Thread number error.");
+		}
 	}
 	/*****************************************************************************************************************/
 
@@ -398,60 +408,76 @@ namespace opt
 	{
 		// 初始化种群
 		initGroup();
-		//std::cout << "aaaaa" << std::endl;
-
-		std::vector<std::thread> vec_cross;
-		std::vector<std::thread> vec_mut;
 
 		if (state.runable())
 		{
-			//state.startTime = std::chrono::steady_clock::now();
-			//// 单独的线程里进行种群迭代
-			//std::thread t(&GAGroup<R(Args...)>::run, this);
-			//t.join();
-			//return true;
-
-			// 构造种群交叉线程池
-			for (int i = 0; i < thread_state.threadNum; i++)
+			if (thread_state.threadNum > 1)
 			{
-				vec_cross.emplace_back(&GAGroup<R(Args...)>::cross_thread, this, i);
-			}
+				// 构造种群交叉线程池
+				for (int i = 0; i < thread_state.threadNum; i++)
+				{
+					vec_cross.emplace_back(&GAGroup<R(Args...)>::cross_thread, this, i);
+				}
 
-			// 构造种群变异线程池
-			for (int i = 0; i < thread_state.threadNum; i++)
+				// 构造种群变异线程池
+				for (int i = 0; i < thread_state.threadNum; i++)
+				{
+					vec_mut.emplace_back(&GAGroup<R(Args...)>::mut_thread, this, i);
+				}
+
+				// 环境选择,  主线程中执行
+				select_thread = std::thread(&GAGroup<R(Args...)>::select, this);
+			}
+			else
 			{
-				vec_mut.emplace_back(&GAGroup<R(Args...)>::mut_thread, this, i);
+				state.startTime = std::chrono::steady_clock::now();
+				single_thread = std::thread(&GAGroup<R(Args...)>::run, this);
 			}
-
-			// 环境选择,  主线程中执行
-			select();
-
-			// 阻塞当前线程
-			for (int i = 0; i < thread_state.threadNum; i++)
-			{
-				vec_cross[i].join();
-				vec_mut[i].join();
-			}
-
 			return true;
 		}
 		return false;
 	}
 
-	// 单线程执行
-	template<class R, class... Args>
-	bool GAGroup<R(Args...)>::single_start()
-	{
-		initGroup();
 
-		if (state.runable())
+	//// 单线程执行
+	//template<class R, class... Args>
+	//bool GAGroup<R(Args...)>::single_start()
+	//{
+	//	initGroup();
+
+	//	if (state.runable())
+	//	{
+	//		state.startTime = std::chrono::steady_clock::now();
+	//		std::thread t(&GAGroup<R(Args...)>::run, this);
+	//		t.join();
+	//		return true;
+	//	}
+	//	return false;
+	//}
+	
+	// 阻塞当前线程, 等待计算结果
+	template<class R, class... Args>
+	void GAGroup<R(Args...)>::wait_result()
+	{
+		// 阻塞GA线程
+		// 单线程模式
+		if (thread_state.threadNum == 1)
 		{
-			state.startTime = std::chrono::steady_clock::now();
-			std::thread t(&GAGroup<R(Args...)>::run, this);
-			t.join();
-			return true;
+			single_thread.join();
+			return;
 		}
-		return false;
+
+		// 多线程模式
+		if (thread_state.threadNum > 1)
+		{
+			for (int i = 0; i < thread_state.threadNum; i++)
+			{
+				vec_cross[i].join();
+				vec_mut[i].join();
+			}
+			select_thread.join();
+			return;
+		}
 	}
 
 	// 暂停进化
@@ -760,28 +786,21 @@ namespace opt
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::cross_thread(const int seq)
 	{
-		//std::condition_variable cv_cross;
 		int Index_M = 0;
 		int Index_F = 0;
 		double rand_cross = 0;
 
 		while (true)
 		{
+			// 临界区
 			{
 				std::unique_lock<std::mutex> lck(thread_state.mtx);
-				//std::cout << "---* Cross before: "<< seq << std::endl;
-				//std::cout << "CrossReady: " << out_bool(thread_state.crossReady) << endl;
-				//std::cout << "MutateReady: " << out_bool(thread_state.mutReady) << endl;
-				//std::cout << "SelecReady: " << out_bool(thread_state.selectReady) << endl;
 				thread_state.cv.wait(lck, [this, &seq]() {return !(this->thread_state).cross_flag[seq] && (this->thread_state).crossReady || this->flushStopFlag(); });
 			}// 离开作用域, thread_state.mtx的unlock()方法自动执行
 			
-			//std::this_thread::sleep_for(1s);
-
 			 // 是否停止迭代
 			if (flushStopFlag())
 			{
-				//cout << "Exit Cross..." << endl;
 				return;
 			}
 
@@ -828,22 +847,16 @@ namespace opt
 			thread_state.mtx.lock();
 			thread_state.cross_flag[seq] = true;
 			thread_state.selectReady = false;
-			//std::cout << "---* Cross after: " << seq << "\n" << std::endl;
 			if (thread_state.cross_flag.is_all_true())
 			{
 				thread_state.cross_flag.set_all(false);
 				thread_state.crossReady = false;
 				thread_state.mutReady = true;
-				//std::cout << "--------Cross finish once in thread: --------" << seq << std::endl;
 			}
 			else
 			{
 				thread_state.mutReady = false;
 			}
-			//std::cout << "\n++ Change in cross: " << seq << endl;
-			//std::cout << "CrossReady: " << out_bool(thread_state.crossReady) << endl;
-			//std::cout << "MutateReady: " << out_bool(thread_state.mutReady) << endl;
-			//std::cout << "SelecReady: " << out_bool(thread_state.selectReady) << endl;
 			thread_state.mtx.unlock();
 			thread_state.cv.notify_all();
 		}
@@ -853,27 +866,19 @@ namespace opt
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::mut_thread(const int seq)
 	{
-		//std::condition_variable cv_mut;  // 条件变量
 		double rand_num = 0; // 随机数
 
 		while (true)
 		{
+			// 临界区
 			{
-				// 临界区
 				std::unique_lock<std::mutex> lck(thread_state.mtx);
-				//std::cout << "---# Mutate before: " << seq << std::endl;
-				//std::cout << "CrossReady: " << out_bool(thread_state.crossReady) << endl;
-				//std::cout << "MutateReady: " << out_bool(thread_state.mutReady) << endl;
-				//std::cout << "SelecReady: " << out_bool(thread_state.selectReady) << endl;
 				thread_state.cv.wait(lck, [this, &seq]() {return !(this->thread_state).mut_flag[seq] && (this->thread_state).mutReady || this->flushStopFlag(); });
 			}
-
-			//std::this_thread::sleep_for(1s);
 
 			// 是否停止迭代
 			if (flushStopFlag())
 			{
-				//cout << "Exit Mutate..." << endl;
 				return;
 			}
 
@@ -901,22 +906,16 @@ namespace opt
 			thread_state.mtx.lock();
 			thread_state.mut_flag[seq] = true;
 			thread_state.crossReady = false;
-			//std::cout << "---# Mutate after: " << seq << "\n" << std::endl;
 			if (thread_state.mut_flag.is_all_true())
 			{
 				thread_state.mut_flag.set_all(false);
 				thread_state.mutReady = false;
 				thread_state.selectReady = true;
-				//std::cout << "--------Mutate finish once--------" << std::endl;
 			}
 			else
 			{
 				thread_state.selectReady = false;
 			}
-			//std::cout << "\n++ Change in mutate: " << seq << endl;
-			//std::cout << "CrossReady: " << out_bool(thread_state.crossReady) << endl;
-			//std::cout << "MutateReady: " << out_bool(thread_state.mutReady) << endl;
-			//std::cout << "SelecReady: " << out_bool(thread_state.selectReady) << endl;
 			thread_state.mtx.unlock();
 			thread_state.cv.notify_all();
 		}
@@ -926,21 +925,14 @@ namespace opt
 	template<class R, class ...Args>
 	void GAGroup<R(Args...)>::select()
 	{
-		//std::condition_variable cv_select;
-
 		while (true)
 		{
 			// 临界区
 			{
 				std::unique_lock<std::mutex> lck(thread_state.mtx);				
-				//std::cout << "---^ Select before. " << std::endl;
-				//std::cout << "CrossReady: " << out_bool(thread_state.crossReady) << endl;
-				//std::cout << "MutateReady: " << out_bool(thread_state.mutReady) << endl;
-				//std::cout << "SelecReady: " << out_bool(thread_state.selectReady) << endl;
 				thread_state.cv.wait(lck, [this]() {return (this->thread_state).selectReady; });
 			}
 			
-			//std::this_thread::sleep_for(1s);
 			// 更新fitArrayCache数组
 			// fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
 			// fitArrayCache[0]始终为0
@@ -964,19 +956,11 @@ namespace opt
 			thread_state.selectReady = false;
 			thread_state.crossReady = true;
 			thread_state.mutReady = false;
-			//std::cout << "---^ Select after." << "\n" << std::endl;
-			//std::cout << "--------Select finish once--------" << std::endl;
-			//std::cout << "第 " << state.nGene << " 代..." << endl;
-			//std::cout << "\n++ Change in select: " << endl;
-			//std::cout << "CrossReady: " << out_bool(thread_state.crossReady) << endl;
-			//std::cout << "MutateReady: " << out_bool(thread_state.mutReady) << endl;
-			//std::cout << "SelecReady: " << out_bool(thread_state.selectReady) << endl;
 			thread_state.mtx.unlock();
 			thread_state.cv.notify_all();
 			// 是否停止迭代
 			if (flushStopFlag())
 			{
-				//cout << "Exit Select..." << endl;
 				return;
 			}
 		}
