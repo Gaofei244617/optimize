@@ -8,7 +8,7 @@
 namespace opt
 {
 	// 种群状态标（随着迭代过程可能发生变化）
-	struct GA_State
+	struct GA_GroupState
 	{
 		long double stopTol;                                                  // 停止迭代误差
 		int maxGene;                                                          // 最大迭代次数
@@ -31,7 +31,7 @@ namespace opt
 
 
 		/* 构造函数*/
-		GA_State()
+		GA_GroupState()
 			:stopTol(0),
 			maxGene(0),
 			maxRuntime(0),
@@ -49,7 +49,7 @@ namespace opt
 		{}
 
 		/* 复制构造, 因为存在atomic成员, 默认复制构造被删除*/
-		GA_State(const GA_State& other)
+		GA_GroupState(const GA_GroupState& other)
 			:stopTol(other.stopTol),
 			maxGene(other.maxGene),
 			maxRuntime(other.maxRuntime),
