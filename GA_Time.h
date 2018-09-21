@@ -5,13 +5,21 @@ namespace opt
 {
 	struct Second
 	{
-		const long double value;
+		long double value;
 		explicit Second(long double N) :value(N) {}
+		Second& operator= (const Second& other)
+		{
+			if (this != &other)
+			{
+				value = other.value;
+			}
+			return *this;
+		}
 	};
 
 	struct Minute
 	{
-		const long double value;
+		long double value;
 		explicit Minute(long double N) :value(N) {}
 		operator Second()
 		{
@@ -21,7 +29,7 @@ namespace opt
 
 	struct Hour
 	{
-		const long double value;
+		long double value;
 		explicit Hour(long double N) :value(N) {}
 		operator Second()
 		{

@@ -142,11 +142,11 @@ namespace opt
 			// 再次寻找子代最差和最优个体
             std::tie(ga->group_state.worstIndex, ga->group_state.bestIndex) = ga->selectPolarIndivs(0, 1);
 
-			// 更新fitArrayCache数组
+			// 更新轮盘赌刻度线
 			ga->updateFitArrayCache();
 
-			// 迭代次数加一
-			(ga->group_state).nGene++;
+			// 更新GA种群停止状态
+			ga->updateStopState();
 
 			sel_flag.set_all(false);
 			selectReady = false;

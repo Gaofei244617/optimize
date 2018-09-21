@@ -64,9 +64,9 @@ namespace opt
 		void setName(const std::string& str);                                 // 设置种群名称
 		void setBoundary(double(*b)[2]);                                      // 设置变量区间
 		void setBoundary(const GenBound& b);                                  // 设置变量区间
-		void setMaxGeneration(int N);                                         // 设置最大迭代次数
+		void setMaxGeneration(const unsigned int N);                          // 设置最大迭代次数
 		void setMaxRuntime(const Second& time);                               // 设置最大运行时间（秒）
-		void setStopTol(long double t);                                       // 设置最优解停止误差
+		void setStopTol(long double t, unsigned int N = 5);                   // 设置最优解停止误差
 		void setMutateProb(double p);                                         // 设置基因变异概率
 		void setCrossProb(double p);                                          // 设置交叉概率
 		void setThreadNum(const int NUM);                                     // 设置并行计算的线程数，默认为1
@@ -97,7 +97,7 @@ namespace opt
 		void sel_thread(const int seq);                                       // 选择(多线程模式)
 		
 		void updateFitArrayCache();                                           // 更新轮盘赌刻度线
-		//void updateBestIndiv();                                               // 更新最优个体记录
+		void updateStopState();                                               // 更新种群停止状态
 
 		std::pair<int, int> selectPolarIndivs(const int seq, const int interval);   // 寻找最差和最好的个体位置,返回<worst, best>
 		int randomPickIndiv();                                                // 依据个体的fitness随机选取一个个体，返回个体位置
@@ -146,10 +146,6 @@ namespace opt
 
 		// fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
 		fitArrayCache = new double[groupSize + 1]();
-
-		//std::cout << std::hex << (int)indivs << std::endl;
-		//std::cout << std::hex << (int)tempIndivs << std::endl;
-		//std::cout << std::hex << (int)fitArrayCache << std::endl;
 	}
 
 	// 复制构造
@@ -287,7 +283,7 @@ namespace opt
 
 	// 设置最大迭代次数
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::setMaxGeneration(int N)
+	void GAGroup<R(Args...)>::setMaxGeneration(const unsigned int N)
 	{
 		group_state.setMaxGeneFlag = true;
 		group_state.maxGene = N;
@@ -303,8 +299,9 @@ namespace opt
 
 	// 设置最优解停止误差
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::setStopTol(long double t)
+	void GAGroup<R(Args...)>::setStopTol(long double t, unsigned int N)
 	{
+		group_state.converCount = N;
 		group_state.setStopTolFlag = true;
 		group_state.stopTol = t;
 	}
@@ -393,7 +390,22 @@ namespace opt
 
 		// 输出优化结果
 		std::cout << "Thread number: " << thread_sync.threadNum << std::endl;
-		std::cout << "Stop code: " << group_state.stopCode << std::endl;
+		
+		// 输出停止条件
+		// Stop Code : -1-未停止; 0-最优解收敛于稳定值; 1-达到最大迭代次数; 2-达到最大迭代时间; 3-人为停止迭代
+		switch (group_state.stopCode)
+		{
+		case 0:
+			std::cout << "Stop condition: reach the convergency." << std::endl;
+			break;
+		case 1:
+			std::cout << "Stop condition: reach the max generation." << std::endl;
+			break;
+		case 2:
+			std::cout << "Stop condition: reach the max time." << std::endl;
+			break;
+		}
+
 		cout << vec[0] << endl;
 		cout << vec[1] << endl;
 		cout << "fitness: " << vec[2] << endl;
@@ -479,26 +491,6 @@ namespace opt
 		}
 	}
 
-	//// 暂停进化
-	//template<class R, class... Args>
-	//bool GAGroup<R(Args...)>::pause()
-	//{
-	//	group_state.stopFlag = true;
-	//	group_state.stopCode = 3;
-	//	return true;
-	//}
-
-	//// 继续迭代
-	//template<class R, class... Args>
-	//bool GAGroup<R(Args...)>::proceed()
-	//{
-	//	group_state.stopFlag = false;
-	//	group_state.stopCode = -1;
-	//	std::thread t(&GAGroup<R(Args...)>::run, this);
-	//	t.join();
-	//	return true;
-	//}
-
 	/******************************************* Private Functions *****************************************************/
 	// 初始化种群     
 	template<class R, class... Args>
@@ -583,7 +575,6 @@ namespace opt
 					tempIndivs[i + 1].vars[j] = indivs[Index_F].vars[j];
 				}
 			}
-
 		}
 
 		// 父代最优个体遗传到子代
@@ -629,7 +620,6 @@ namespace opt
 		
 		// 淘汰子代最差个体, 用父代最优个体取代
 		indivs[group_state.worstIndex] = indivs[groupSize];
-
 		// 如果子代出现更优个体
 		if (indivs[group_state.bestIndex].fitness >= indivs[groupSize].fitness)
 		{
@@ -649,28 +639,15 @@ namespace opt
 	{
 		while (true)
 		{
-			// 更新fitArrayCache数组
+			// 更新更新轮盘赌刻度线
 			updateFitArrayCache();
 
-			crossover();
-			mutate();
-			select();
+			crossover();   // 交叉
+			mutate();      // 变异
+			select();      // 环境选择
 
-			// 迭代次数加一
-			group_state.nGene++;
-			
-			// 记录当前时间
-			group_state.nowTime = std::chrono::steady_clock::now();
-
-			// 判断最优解相较于上一次的波动值
-			if (abs(bestIndivs[group_state.nGene - 1].fitness - bestIndivs[group_state.nGene].fitness) <= group_state.stopTol)
-			{
-				group_state.count++;
-			}
-			else
-			{
-				group_state.count = 0;
-			}
+			// 更新停止状态
+			updateStopState();
 
 			// 判断是否到达停止条件
 			if (getStopFlag())
@@ -684,11 +661,31 @@ namespace opt
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::updateFitArrayCache()
 	{
-		// 更新fitArrayCache数组
         // fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
 		for (int i = 1; i < groupSize; i++)
 		{
 			fitArrayCache[i] = fitArrayCache[i - 1] + (indivs[i - 1].fitness - indivs[group_state.worstIndex].fitness);
+		}
+	}
+
+	// 更新种群停止状态
+	template<class R, class... Args>
+	void GAGroup<R(Args...)>::updateStopState()
+	{
+		// 迭代次数加一
+		group_state.nGene++;
+
+		// 记录当前时间
+		group_state.nowTime = std::chrono::steady_clock::now();
+
+		// 判断最优个体fitness值较上一代的波动情况
+		if (abs(bestIndivs[group_state.nGene - 1].fitness - bestIndivs[group_state.nGene].fitness) <= group_state.stopTol)
+		{
+			group_state.count++;
+		}
+		else
+		{
+			group_state.count = 0;
 		}
 	}
 
@@ -755,6 +752,14 @@ namespace opt
 	template<class R, class... Args>
 	bool GAGroup<R(Args...)>::getStopFlag()
 	{
+		// Stop Code : -1-未停止; 0-最优解收敛于稳定值; 1-达到最大迭代次数; 2-达到最大迭代时间; 3-人为停止迭代
+
+		// 是否连续5次最优解的波动小于停止误差
+		if (group_state.setStopTolFlag && group_state.count == group_state.converCount)
+		{
+			group_state.stopCode = 0;
+		}
+
 		// 是否达到最大迭代次数
 		if (group_state.setMaxGeneFlag && group_state.nGene >= group_state.maxGene)
 		{
@@ -766,12 +771,6 @@ namespace opt
 		if (group_state.setRuntimeFlag && evolTime.count() >= group_state.maxRuntime.value)
 		{
 			group_state.stopCode = 2;
-		}
-
-		// 是否连续5次最优解的波动小于停止误差
-		if (group_state.setStopTolFlag && group_state.count == 5)
-		{
-			group_state.stopCode = 0;
 		}
 
 		// 根据stop code判断种群是否停止迭代

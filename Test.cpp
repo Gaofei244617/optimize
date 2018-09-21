@@ -45,18 +45,15 @@ double test_Func2(double x, double y)
 
 int main()
 {	
-	//cout << getSec(Second(41.2)) << endl;
-	//cout << getSec(Minute(2)) << endl;
-	//cout << getSec(Hour(1)) << endl;
-	//cout << "Size of GA_State is: " << sizeof(GA_State) << endl;
-	//cout << "Size of Individual is: " << sizeof(Individual) << endl;
 	{
 		auto a = opt::createGAGroup(test_Func2, 100);
 		a.setBoundary({ {0, 25}, {0, 35} });
-		a.setMaxGeneration(2000);
 		
-		a.setThreadNum(4);
-		//a.setThreadNum(1);
+		a.setMaxGeneration(2000);
+		//a.setMaxRuntime(Second(0.6));
+		
+		//a.setThreadNum(4);
+		a.setThreadNum(1);
 
 		// profile
 		DWORD start = GetTickCount();
