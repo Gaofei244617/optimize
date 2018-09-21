@@ -10,7 +10,7 @@ namespace opt
 	// SBX交叉算法(模拟二进制单点交叉)
 	// 子代满足 (1) p1 + p2 = c1 + c2, (2) beta = |(c2 - c1) / (p2 - p1)|
 	// p1、p2为父代, c1、c2为子代, 一对父代交叉产生两个子代
-
+	// 形参分别为父代和母代相同位置的一个基因，返回交叉后产生的两个基因
 	std::pair<double, double> cross_SBX(const double m, const double f)
 	{
 		double beta = 0;                              // 均匀分布因子

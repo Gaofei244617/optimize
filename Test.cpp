@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cstdlib>
 #include "GA.h"
-#include <string>
+//#include <string>
 #include <vector>
 #include <utility>
 #include <cmath>
@@ -9,6 +9,11 @@
 #include "GA_Time.h"
 #include <chrono>
 #include <windows.h>
+
+////////////
+//#include <crtdbg.h>
+#include <stdio.h>
+#include <string.h>
 
 using namespace std;
 using namespace opt;
@@ -45,21 +50,22 @@ int main()
 	//cout << getSec(Hour(1)) << endl;
 	//cout << "Size of GA_State is: " << sizeof(GA_State) << endl;
 	//cout << "Size of Individual is: " << sizeof(Individual) << endl;
+	{
+		auto a = opt::createGAGroup(test_Func2, 100);
+		a.setBoundary({ {0, 25}, {0, 35} });
+		a.setMaxGeneration(2000);
+		
+		a.setThreadNum(4);
+		//a.setThreadNum(1);
 
-	auto a = opt::createGAGroup(test_Func2, 100);
-	a.setBoundary({ {0, 25}, {0, 35} });
-	a.setMaxGeneration(2000);
-	//a.setThreadNum(4);
-	a.setThreadNum(1);
-	
-	// profile
-	DWORD start = GetTickCount();
-	a.start();
-	a.wait_result();
-	DWORD end = GetTickCount();
-	cout << "The run time is:" << (end - start) / 1000.0 << " s" << endl;
-
-	a.test();
+		// profile
+		DWORD start = GetTickCount();
+		a.start();
+		a.wait_result();
+		DWORD end = GetTickCount();
+		cout << "The run time is:" << (end - start) / 1000.0 << " s" << endl;
+		a.test();
+	}
 
 	//decltype(a) b(a);
 	
