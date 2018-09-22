@@ -16,9 +16,9 @@ namespace opt
 	template<class R, class... Args>
 	class GAThreadSync
 	{
-	private:
 		friend class GAGroup<R(Args...)>;
 
+	private:
 		std::mutex mtx;                                   // 互斥量
 		std::condition_variable cv;                       // 条件变量, 用于线程同步
 		bool crossReady;                                  // 交叉操作标志
@@ -83,10 +83,17 @@ namespace opt
 	{
 		cross_flag[thread_seq] = true;
 		selectReady = false;
+		
 		// 若交叉线程组全部运行完
 		if (cross_flag.is_all_true())
 		{
-			// Do more things..........
+			// 父代最优个体遗传到子代
+			ga->tempIndivs[ga->groupSize] = ga->indivs[ga->groupSize];
+
+			// 交换子代个体缓存区和父代个体存放区的指针
+			Individual* temp = ga->indivs;
+			ga->indivs = ga->tempIndivs;
+			ga->tempIndivs = temp;
 
 			cross_flag.set_all(false);
 			crossReady = false;

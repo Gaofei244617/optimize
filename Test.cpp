@@ -52,8 +52,8 @@ int main()
 		a.setMaxGeneration(2000);
 		//a.setMaxRuntime(Second(0.6));
 		
-		//a.setThreadNum(4);
-		a.setThreadNum(1);
+		a.setThreadNum(2);
+		//a.setThreadNum(1);
 
 		// profile
 		DWORD start = GetTickCount();
