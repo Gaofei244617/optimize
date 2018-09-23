@@ -38,7 +38,7 @@ namespace opt
 		std::string name;                                                     // 种群名称
 		int groupSize;                                                        // 初始种群个体数量，default = 1000；
 		const int nVars;                                                      // 适应度函数包含的变量个数    
-		Individual* indivs;                                                   // 种群个体, 指向groupSize + 1个个体数组(最后一个存放最优个体)
+		Individual* indivs;                                                   // 种群个体, 指向groupSize个个体数组(最后一个存放最优个体)
 		Individual* tempIndivs;                                               // 子代个体缓存区
 		R(*fitFunc)(Args...);                                                 // 适应度函数指针
 		double(*bound)[2];                                                    // 每个变量(基因)的区间, 以数组指针表示
@@ -47,7 +47,7 @@ namespace opt
 		double crossProb;                                                     // 个体交叉概率, 默认p = 0.6
 		std::vector<Individual> bestIndivs;                                   // 记录每次迭代的最优个体	
 
-		std::vector<std::thread> vec_run;                                   // 交叉线程组
+		std::vector<std::thread> vec_run;                                     // 交叉线程组
 		std::thread single_thread;                                            // 单线程
 		
 		GA_GroupState group_state;                                            // 种群状态
@@ -73,7 +73,6 @@ namespace opt
 		int getNVars()const;                                                  // 获取种群变量个数 
 		int getGeneration()const;                                             // 获得当前种群代数
 		int getGroupSize()const;                                              // 获得当前种群个体数量	
-		const Individual& getIndivByIndex(const int index)const;              // 获取种群个体（通过下标）
 
 		void test();                                                       ///////////////////////////////
 
@@ -86,19 +85,20 @@ namespace opt
 	private:
 		void initGroup();                                                     // 初始化种群个体
 
-		void crossover();                                                     // 交叉(单线程模式)
-		void mutate();                                                        // 变异(单线程模式)
-		void select();                                                        // 选择(单线程模式)
+		void crossover(const int seq);                                        // 交叉(单线程模式)
+		void mutate(const int seq);                                           // 变异(单线程模式)
+		void select(const int seq);                                           // 选择(单线程模式)
 		
-		void crossover_multi(const int seq);                                     // 交叉(多线程模式)
-		void mutate_multi(const int seq);                                       // 变异(多线程模式)
-		void select_multi(const int seq);                                       // 选择(多线程模式)
+		void crossover_multi(const int seq);                                  // 交叉(多线程模式)
+		void mutate_multi(const int seq);                                     // 变异(多线程模式)
+		void select_multi(const int seq);                                     // 选择(多线程模式)
 
 		void run();
 		void run_multi(const int seq);
 		
 		void updateFitArrayCache();                                           // 更新轮盘赌刻度线
 		void updateStopState();                                               // 更新种群停止状态
+		void switchIndivArray();
 
 		std::pair<int, int> selectPolarIndivs(const int seq, const int interval);   // 寻找最差和最好的个体位置,返回<worst, best>
 		int randomPickIndiv();                                                // 依据个体的fitness随机选取一个个体，返回个体位置
@@ -132,11 +132,11 @@ namespace opt
 		thread_sync(this)
 	{
 		// 分配个体内存，但不构造个体(Indivadual无默认构造),最后一个位置用于存放最优个体
-		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * (groupSize + 1)));
-		this->tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * (groupSize + 1)));
+		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
+		this->tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
 
 		// 在已分配的内存上构造个体对象
-		for (int i = 0; i < groupSize + 1; i++)
+		for (int i = 0; i < groupSize; i++)
 		{
 			new(indivs + i) Individual(nVars);
 			new(tempIndivs + i) Individual(nVars);
@@ -166,11 +166,11 @@ namespace opt
 		thread_sync(other.thread_sync, this)
 	{
 		// 分配个体内存，但不构造个体(Indivadual无默认构造)
-		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * (groupSize + 1)));
-		this->tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * (groupSize + 1)));
+		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
+		this->tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
 
 		// 在已分配的内存上构造个体对象
-		for (int i = 0; i < groupSize + 1; i++)
+		for (int i = 0; i < groupSize; i++)
 		{
 			new(indivs + i) Individual(*(other.indivs + i));
 			new(tempIndivs + i) Individual(*(other.tempIndivs + i));
@@ -220,8 +220,8 @@ namespace opt
 		// 析构indivs数组
 		if (indivs != nullptr)
 		{
-			// 析构种群中的每一个个体（共有groupSize + 1个个体）
-			for (int i = 0; i < groupSize + 1; i++)
+			// 析构种群中的每一个个体（共有groupSize个个体）
+			for (int i = 0; i < groupSize; i++)
 			{
 				(indivs + i) -> ~Individual();
 			}
@@ -232,8 +232,8 @@ namespace opt
 		// 析构tempIndivs数组
 		if (tempIndivs != nullptr)
 		{
-			// 析构种群中的每一个个体（共有groupSize + 1个个体）
-			for (int i = 0; i < groupSize + 1; i++)
+			// 析构种群中的每一个个体（共有groupSize个个体）
+			for (int i = 0; i < groupSize; i++)
 			{
 				(tempIndivs + i) -> ~Individual();
 			}
@@ -365,13 +365,6 @@ namespace opt
 		return groupSize;
 	}
 
-	// 获取种群个体（通过下标）
-	template<class R, class... Args>
-	const Individual& GAGroup<R(Args...)>::getIndivByIndex(const int index)const
-	{
-		return *(indivs + index);
-	}
-	
 	/************************************************************************/
 	/************************************************************************/
 	/************************************************************************/
@@ -385,9 +378,9 @@ namespace opt
 		std::vector<double> vec;
 		for (int i = 0; i < nVars; i++)
 		{
-			vec.push_back(indivs[groupSize].vars[i]);
+			vec.push_back(bestIndivs.back().vars[i]);
 		}
-		vec.push_back(indivs[groupSize].fitness);
+		vec.push_back(bestIndivs.back().fitness);
 
 		// 输出优化结果
 		std::cout << "Thread number: " << thread_sync.threadNum << std::endl;
@@ -499,8 +492,7 @@ namespace opt
 
 			// 2.寻找最差和最好适应度个体
 			std::tie(group_state.worstIndex, group_state.bestIndex) = this->selectPolarIndivs(0, 1);
-			indivs[groupSize] = indivs[group_state.bestIndex];                 // indivs数组末尾位置用于存储最优解
-			bestIndivs.push_back(indivs[groupSize]);                     // 记录最优解
+			bestIndivs.push_back(indivs[group_state.bestIndex]);                     // 记录最优解
 
 			// 3.初始化fitArrayCache数组
 			updateFitArrayCache();
@@ -520,14 +512,14 @@ namespace opt
 
 	// 交叉(单线程模式)
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::crossover()
+	void GAGroup<R(Args...)>::crossover(const int seq)
 	{
 		int Index_M = 0;             // 父个体
 		int Index_F = 0;             // 母个体
 		double rand_cross = 0;       // 随机数缓存    
 
-		// 随机选取groupSize/2对个体交叉, fitness越大，被选中的概率越大
-		for (int i = 0; i < groupSize; i += 2)
+		// 随机选取个体交叉, fitness越大，被选中的概率越大
+		for (int i = seq * 2; i < groupSize; i += 2 * thread_sync.threadNum)
 		{
 			// 随机选取两个个体作为父代
 			Index_M = randomPickIndiv();
@@ -561,24 +553,16 @@ namespace opt
 				}
 			}
 		}
-
-		// 父代最优个体遗传到子代
-		tempIndivs[groupSize] = indivs[groupSize];
-
-		// 交换子代个体缓存区和父代个体存放区的指针
-		Individual* temp = indivs;
-		indivs = tempIndivs;
-		tempIndivs = temp;
 	}
 
 	// 变异(单线程模式)
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::mutate()
+	void GAGroup<R(Args...)>::mutate(const int seq)
 	{
 		double rand_num = 0; // 随机数
 
 		// 每个个体的变异
-		for (int i = 0; i < groupSize; i++)
+		for (int i = seq; i < groupSize; i += thread_sync.threadNum)
 		{
 			// 每个基因的变异
 			for (int j = 0; j < nVars; j++)
@@ -598,75 +582,36 @@ namespace opt
 
 	// 选择(单线程模式)
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::select()
+	void GAGroup<R(Args...)>::select(const int seq)
 	{
 		// 寻找子代最差和最优个体
-		std::tie(group_state.worstIndex, group_state.bestIndex) = this->selectPolarIndivs(0, 1);
+		std::tie(group_state.worstIndex, group_state.bestIndex) = this->selectPolarIndivs(seq, thread_sync.threadNum);
 		
 		// 淘汰子代最差个体, 用父代最优个体取代
-		indivs[group_state.worstIndex] = indivs[groupSize];
+		indivs[group_state.worstIndex] = bestIndivs.back();
+		
 		// 如果子代出现更优个体
-		if (indivs[group_state.bestIndex].fitness >= indivs[groupSize].fitness)
+		if (indivs[group_state.bestIndex].fitness >= bestIndivs.back().fitness)
 		{
-			indivs[groupSize] = indivs[group_state.bestIndex];
+			bestIndivs.push_back(indivs[group_state.bestIndex]);
 		}
-
-		// 再次寻找子代最差和最优个体
-		std::tie(group_state.worstIndex, group_state.bestIndex) = this->selectPolarIndivs(0, 1);
-
-		// 记录最优解
-		bestIndivs.push_back(indivs[groupSize]);
+		else
+		{
+			bestIndivs.push_back(bestIndivs.back());
+		}
 	}
 
 	// 交叉(多线程模式)
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::crossover_multi(const int seq)
 	{
-		int Index_M = 0;
-		int Index_F = 0;
-		double rand_cross = 0;
-
 		// 临界区
 		{
 			std::unique_lock<std::mutex> lck(thread_sync.mtx);
 			thread_sync.cv.wait(lck, [this, &seq]() {return !(this->thread_sync).cross_flag[seq] && (this->thread_sync).crossReady || this->getStopFlag(); });
 		}// 离开作用域, gm.thread_state.mtx的unlock()方法自动执行
 
-		// 父代个体交叉产生子代
-		for (int i = seq; i < groupSize; i += 2 * thread_sync.threadNum)
-		{
-			// 随机选取两个个体作为父代
-			Index_M = randomPickIndiv();
-			Index_F = randomPickIndiv();
-
-			// 生成子代个体, 存放于缓存数组tempIndivs中
-			for (int j = 0; j < nVars; j++)
-			{
-				// 依据交叉概率决定基因是否进行交叉
-				rand_cross = random_real(0, 1);
-				if (rand_cross <= crossProb)   // 交叉
-				{
-					// 基因交叉产生子代基因
-					std::tie(tempIndivs[i].vars[j], tempIndivs[i + 1].vars[j]) = cross_SBX(indivs[Index_M].vars[j], indivs[Index_F].vars[j]);
-
-					// 子代基因是否超过边界
-					if (tempIndivs[i].vars[j] < bound[j][0] || tempIndivs[i].vars[j] > bound[j][1])
-					{
-						tempIndivs[i].vars[j] = random_real(bound[j][0], bound[j][1]);
-					}
-					if (tempIndivs[i + 1].vars[j] < bound[j][0] || tempIndivs[i + 1].vars[j] > bound[j][1])
-					{
-						tempIndivs[i + 1].vars[j] = random_real(bound[j][0], bound[j][1]);
-					}
-				}
-				else    // 不交叉
-				{
-					// 继承父代基因，基因不发生交叉
-					tempIndivs[i].vars[j] = indivs[Index_M].vars[j];
-					tempIndivs[i + 1].vars[j] = indivs[Index_F].vars[j];
-				}
-			}
-		}
+		crossover(seq);
 
 		// 线程同步
 		thread_sync.mtx.lock();
@@ -685,29 +630,9 @@ namespace opt
 			std::unique_lock<std::mutex> lck(thread_sync.mtx);
 			thread_sync.cv.wait(lck, [this, &seq]() {return !(this->thread_sync).mut_flag[seq] && (this->thread_sync).mutReady || this->getStopFlag(); });
 		}
+
+		mutate(seq);
 		
-		double rand_num = 0; // 随机数
-
-		// 每个个体变异(最优解个体不发生变异)
-		for (int i = seq; i < groupSize; i += thread_sync.threadNum)
-		{
-			if (i != group_state.bestIndex)
-			{
-				// 每个基因的变异
-				for (int j = 0; j < nVars; j++)
-				{
-					rand_num = random_real(0, 1);
-					if (rand_num < mutateProb)
-					{
-						// 基因变异
-						indivs[i].vars[j] = mutate_PM(indivs[i].vars[j], bound[j][0], bound[j][1]);
-					}
-				}
-				// 计算个体适应度
-				indivs[i].fitness = callFitFunc(indivs[i].vars, std::make_index_sequence<sizeof...(Args)>());
-			}
-		}
-
 		// 线程同步
 		thread_sync.mtx.lock();
 		thread_sync.mutate_sync(seq);
@@ -755,16 +680,13 @@ namespace opt
 	void GAGroup<R(Args...)>::run()
 	{
 		while (true)
-		{
-			// 更新更新轮盘赌刻度线
-			updateFitArrayCache();
-
-			crossover();   // 交叉
-			mutate();      // 变异
-			select();      // 环境选择
-
-			// 更新停止状态
-			updateStopState();
+		{			
+			updateFitArrayCache();            // 更新更新轮盘赌刻度线
+			crossover(0);                     // 交叉
+			switchIndivArray();              // 交换个体数组
+			mutate(0);                        // 变异
+			select(0);                        // 环境选择			
+			updateStopState();                // 更新停止状态
 
 			// 判断是否到达停止条件
 			if (getStopFlag())
@@ -796,6 +718,17 @@ namespace opt
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::updateFitArrayCache()
 	{
+		int worst = 0;
+
+		// 遍历indivs的fitness，寻找fitness的最小值,记录最小值位置
+		for (int i = 1; i < groupSize; i++)
+		{
+			if (indivs[i].fitness < indivs[worst].fitness)
+			{
+				worst = i;
+			}
+		}
+
         // fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
 		for (int i = 1; i < groupSize; i++)
 		{
@@ -822,6 +755,16 @@ namespace opt
 		{
 			group_state.count = 0;
 		}
+	}
+
+	// 更新种群停止状态
+	template<class R, class... Args>
+	void GAGroup<R(Args...)>::switchIndivArray()
+	{
+		// 交换子代个体缓存区和父代个体存放区的指针
+		Individual* temp = indivs;
+		indivs = tempIndivs;
+		tempIndivs = temp;
 	}
 
 	// 寻找最差和最好的个体位置, 形参为线程ID(0 ~ N)及并行线程数量, 返回pair<worst, best>

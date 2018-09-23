@@ -87,13 +87,8 @@ namespace opt
 		// 若交叉线程组全部运行完
 		if (cross_flag.is_all_true())
 		{
-			// 父代最优个体遗传到子代
-			ga->tempIndivs[ga->groupSize] = ga->indivs[ga->groupSize];
-
-			// 交换子代个体缓存区和父代个体存放区的指针
-			Individual* temp = ga->indivs;
-			ga->indivs = ga->tempIndivs;
-			ga->tempIndivs = temp;
+			// 交换个体数组
+			ga->switchIndivArray();
 
 			cross_flag.set_all(false);
 			crossReady = false;
@@ -135,20 +130,18 @@ namespace opt
 		if (sel_flag.is_all_true())
 		{
 			// 淘汰子代最差个体, 用父代最优个体取代
-			ga->indivs[ga->group_state.worstIndex] = ga->indivs[ga->groupSize];
+			ga->indivs[ga->group_state.worstIndex] = ga->bestIndivs.back();
 
 			// 如果变异后出现更优个体
-			if (ga->indivs[ga->group_state.bestIndex].fitness >= ga->indivs[ga->groupSize].fitness)
+			if (ga->indivs[ga->group_state.bestIndex].fitness >= ga->bestIndivs.back().fitness)
 			{
-				ga->indivs[ga->groupSize] = ga->indivs[ga->group_state.bestIndex];
+				ga->bestIndivs.push_back(ga->indivs[ga->group_state.bestIndex]);
 			}
-
-			// 记录最优解
-			ga->bestIndivs.push_back(ga->indivs[ga->groupSize]);
+			else
+			{
+				ga->bestIndivs.push_back(ga->bestIndivs.back());
+			}
 			
-			// 再次寻找子代最差和最优个体
-            std::tie(ga->group_state.worstIndex, ga->group_state.bestIndex) = ga->selectPolarIndivs(0, 1);
-
 			// 更新轮盘赌刻度线
 			ga->updateFitArrayCache();
 
