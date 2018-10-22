@@ -46,10 +46,11 @@ double test_Func2(double x, double y)
 int main()
 {	
 	{
-		auto a = opt::createGAGroup(test_Func2, 100);
+		auto a = opt::createGAGroup(test_Func2,5);
 		a.setBoundary({ {0, 25}, {0, 35} });
+		a.setCrossProb(0.95);
 		
-		a.setMaxGeneration(2000);
+		a.setMaxGeneration(20);
 		//a.setMaxRuntime(Second(0.6));
 		
 		//a.setThreadNum(4);
@@ -62,6 +63,7 @@ int main()
 		DWORD end = GetTickCount();
 		cout << "The run time is:" << (end - start) / 1000.0 << " s" << endl;
 		a.test();
+
 	}
 
 	//decltype(a) b(a);

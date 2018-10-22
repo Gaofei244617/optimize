@@ -2,7 +2,6 @@
 #define _Genetic_Algorithm_
 
 #include <string>
-#include <utility>
 #include <chrono>
 #include <tuple>
 #include <vector>
@@ -15,16 +14,22 @@
 #include "cross_factor.h"
 #include "mutate_factor.h"
 #include "ga_thread_sync.h"
+#include "index_seq.h"
 
 /*************Test*******************/
 #include <iostream>
 #include "out_bool.h"
 #include <iomanip>
-//#include <crtdbg.h>
+#include "out_test.h"
+#include <fstream>
 /************************************/
 
 namespace opt
 {
+	//debug
+	std::fstream file;
+	/////////////////////////
+
 	template<class F> class GAGroup;
 
 	// 种群类，需提供适应度函数类型
@@ -75,12 +80,19 @@ namespace opt
 		int getGroupSize()const;                                              // 获得当前种群个体数量	
 
 		void test();                                                       ///////////////////////////////
+		
+		//debug
+		std::vector<std::vector<double>> note;
+		////////////////////////
 
 		bool start();
 		void wait_result();                                                   // 等待进化结果
 		
 		bool pause();                                                         // 停止进化
-		bool proceed();                                                       // 继续迭代                                                    
+		bool proceed();                                                       // 继续迭代    
+
+		//debug
+		int randomPickIndiv();                                                // 依据个体的fitness随机选取一个个体，返回个体位置
 
 	private:
 		void initGroup();                                                     // 初始化种群个体
@@ -101,9 +113,9 @@ namespace opt
 		void switchIndivArray();
 
 		std::pair<int, int> selectPolarIndivs(const int seq, const int interval);   // 寻找最差和最好的个体位置,返回<worst, best>
-		int randomPickIndiv();                                                // 依据个体的fitness随机选取一个个体，返回个体位置
+		// int randomPickIndiv();
 		template<std::size_t... I>
-		R callFitFunc(double* args, const std::index_sequence<I...>&);        // 调用适应度函数
+		R callFitFunc(double* args, const opt::index_seq<I...>&);             // 调用适应度函数
 		bool getStopFlag();                                                   // 判断是否结束迭代
 	};
 
@@ -129,7 +141,9 @@ namespace opt
 		fitArrayCache(nullptr),
 		mutateProb(0.1),
 		crossProb(0.6),
-		thread_sync(this)
+		thread_sync(this),
+		//debug
+		note(groupSize, std::vector<double>{0,0,0})
 	{
 		// 分配个体内存，但不构造个体(Indivadual无默认构造),最后一个位置用于存放最优个体
 		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
@@ -427,12 +441,16 @@ namespace opt
 		// 初始化种群
 		initGroup();
 
+		//debug
+		printIndivs(indivs, groupSize, note);
+		//////////////////////////////
+
 		// 若种群满足进化条件
 		if (group_state.runable())
 		{
 			group_state.startTime = std::chrono::steady_clock::now();
-			// 多线程模式
-			if (thread_sync.threadNum > 1)
+			
+			if (thread_sync.threadNum > 1) // 多线程模式
 			{
 				// 构造种群交叉线程组
 				for (int i = 0; i < thread_sync.threadNum; i++)
@@ -487,7 +505,7 @@ namespace opt
 					indivs[i].vars[j] = random_real(bound[j][0], bound[j][1]);
 				}
 				// 个体适应度
-				indivs[i].fitness = callFitFunc(indivs[i].vars, std::make_index_sequence<sizeof...(Args)>());
+				indivs[i].fitness = callFitFunc(indivs[i].vars, opt::make_index_seq<sizeof...(Args)>());
 			}
 
 			// 2.寻找最差和最好适应度个体
@@ -524,6 +542,11 @@ namespace opt
 			// 随机选取两个个体作为父代
 			Index_M = randomPickIndiv();
 			Index_F = randomPickIndiv();
+
+			//debug
+			note[i] = std::vector<double>{ double(Index_M), double(Index_F),indivs[Index_M].fitness };
+			note[i + 1] = std::vector<double>{ double(Index_M), double(Index_F),indivs[Index_F].fitness };
+			////////////////////////////////////
 
 			// 生成子代个体, 存放于缓存数组tempIndivs中
 			for (int j = 0; j < nVars; j++)
@@ -570,13 +593,13 @@ namespace opt
 				rand_num = random_real(0, 1);
 				if (rand_num < mutateProb)
 				{
-					// 基因变异
+					// 单个基因变异
 					indivs[i].vars[j] = mutate_PM(indivs[i].vars[j], bound[j][0], bound[j][1]);
 				}
 			}
 			
 			// 计算每个个体适应度
-			indivs[i].fitness = callFitFunc(indivs[i].vars, std::make_index_sequence<sizeof...(Args)>());
+			indivs[i].fitness = callFitFunc(indivs[i].vars, opt::make_index_seq<sizeof...(Args)>());
 		}
 	}
 
@@ -680,13 +703,29 @@ namespace opt
 	void GAGroup<R(Args...)>::run()
 	{
 		while (true)
-		{			
+		{	
 			updateFitArrayCache();            // 更新更新轮盘赌刻度线
+
+			//debug
+			file.open("mydata.txt", ios::app);
+			file << "FitArry：";
+			for (int i = 0; i < groupSize; i++)
+			{
+				file << fitArrayCache[i+1] - fitArrayCache[i] << "  ";
+			}
+			file << std::endl;
+			file.close();
+			////////////////////////////////
+
 			crossover(0);                     // 交叉
-			switchIndivArray();              // 交换个体数组
+			switchIndivArray();               // 交换个体数组
 			mutate(0);                        // 变异
 			select(0);                        // 环境选择			
 			updateStopState();                // 更新停止状态
+			
+			// debug
+			printIndivs(indivs, groupSize, note);
+			///////////////////////////
 
 			// 判断是否到达停止条件
 			if (getStopFlag())
@@ -730,9 +769,9 @@ namespace opt
 		}
 
         // fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
-		for (int i = 1; i < groupSize; i++)
+		for (int i = 1; i < groupSize + 1; i++)
 		{
-			fitArrayCache[i] = fitArrayCache[i - 1] + (indivs[i - 1].fitness - indivs[group_state.worstIndex].fitness);
+			fitArrayCache[i] = fitArrayCache[i - 1] + (indivs[i - 1].fitness - indivs[worst].fitness);
 		}
 	}
 
@@ -795,6 +834,9 @@ namespace opt
 	template<class R, class... Args>
 	int GAGroup<R(Args...)>::randomPickIndiv()
 	{
+		//double fitArrayCache[6] = {0,1,22,100,103,104};
+		//int groupSize = 5;
+
 		// fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
 		double temp = random_real(0, fitArrayCache[groupSize]);
 
@@ -822,7 +864,7 @@ namespace opt
 	// 调用适应度函数
 	template<class R, class... Args>
 	template<std::size_t... I>
-	inline R GAGroup<R(Args...)>::callFitFunc(double* args, const std::index_sequence<I...>&)
+	inline R GAGroup<R(Args...)>::callFitFunc(double* args, const opt::index_seq<I...>&)
 	{
 		return fitFunc(args[I]...);
 	}
