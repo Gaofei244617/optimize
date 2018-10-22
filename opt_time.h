@@ -1,5 +1,5 @@
-#ifndef _GA_TIME_H_
-#define _GA_TIME_H_
+#ifndef _OPT_TIME_H_
+#define _OPT_TIME_H_
 
 namespace opt
 {

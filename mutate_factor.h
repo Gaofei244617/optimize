@@ -2,7 +2,7 @@
 #define _MUTATE_FACTOR_H_
 
 #include <cmath>
-#include "Range_Random.h"
+#include "range_random.h"
 
 namespace opt
 {
@@ -37,5 +37,5 @@ namespace opt
 	}
 }
 
-#endif // !_MUTATE_FACTOR_H_
+#endif 
 

@@ -3,7 +3,7 @@
 
 #include <chrono>
 #include <atomic>
-#include "GA_Time.h"
+#include "opt_time.h"
 
 namespace opt
 {
@@ -78,5 +78,5 @@ namespace opt
 	};
 }
 
-#endif // 
+#endif
 

@@ -3,6 +3,8 @@
 
 namespace opt
 {
+	// 编译期将N展开为(0,1,...,N-1)
+
 	template<size_t... I>
 	struct index_seq {};
 

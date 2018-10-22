@@ -55,15 +55,11 @@ namespace opt
 			ga(ptr)
 		{}
 
-		// 设置线程数量
-		void setThreadNum(const int N);
+		void setThreadNum(const int N);	            // 设置线程数量
 
-		// “交叉”线程同步
-		void cross_sync(const int thread_seq);
-		// “变异”线程同步
-		void mutate_sync(const int thread_seq);
-		// “选择”线程同步
-		void select_sync(const int thread_seq);
+		void cross_sync(const int thread_seq);		// "交叉"线程同步
+		void mutate_sync(const int thread_seq);		// "变异"线程同步
+		void select_sync(const int thread_seq);		// "选择"线程同步
 	};
     
 	///////////////////////////////////////////////////////////////////////////////////////////
@@ -100,12 +96,13 @@ namespace opt
 		}
 	}
 
-	// “变异”线程同步
+	// "变异"线程同步
 	template<class R, class... Args>
 	void GAThreadSync<R, Args...>::mutate_sync(const int thread_seq)
 	{
 		mut_flag[thread_seq] = true;
 		crossReady = false;
+		
 		// 若变异线程组全部运行完
 		if (mut_flag.is_all_true())
 		{
@@ -119,7 +116,7 @@ namespace opt
 		}
 	}
 
-	// “选择”线程同步
+	// "选择"线程同步
 	template<class R, class... Args>
 	void GAThreadSync<R, Args...>::select_sync(const int thread_seq)
 	{

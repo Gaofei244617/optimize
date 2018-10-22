@@ -7,32 +7,21 @@
 #include <vector>
 #include <cmath>
 #include <thread>
-#include "Individual.h"
-#include "Range_Random.h"
-#include "GA_Time.h"
+
+#include "individual.h"
+#include "range_random.h"
+#include "opt_time.h"
 #include "GA_GroupState.h"
 #include "cross_factor.h"
 #include "mutate_factor.h"
 #include "ga_thread_sync.h"
 #include "index_seq.h"
 
-/*************Test*******************/
-#include <iostream>
-#include "out_bool.h"
-#include <iomanip>
-#include "out_test.h"
-#include <fstream>
-/************************************/
-
 namespace opt
 {
-	//debug
-	std::fstream file;
-	/////////////////////////
-
 	template<class F> class GAGroup;
 
-	// 种群类，需提供适应度函数类型
+	// GA种群类，需提供适应度函数类型
 	template<class R, class... Args>
 	class GAGroup<R(Args...)>
 	{
@@ -78,21 +67,14 @@ namespace opt
 		int getNVars()const;                                                  // 获取种群变量个数 
 		int getGeneration()const;                                             // 获得当前种群代数
 		int getGroupSize()const;                                              // 获得当前种群个体数量	
-
-		void test();                                                       ///////////////////////////////
-		
-		//debug
-		std::vector<std::vector<double>> note;
-		////////////////////////
+		std::vector<Individual> getBestIndivs();                              // 获取历次迭代的最优解
+		int getStopCode();
 
 		bool start();
 		void wait_result();                                                   // 等待进化结果
 		
 		bool pause();                                                         // 停止进化
 		bool proceed();                                                       // 继续迭代    
-
-		//debug
-		int randomPickIndiv();                                                // 依据个体的fitness随机选取一个个体，返回个体位置
 
 	private:
 		void initGroup();                                                     // 初始化种群个体
@@ -113,19 +95,11 @@ namespace opt
 		void switchIndivArray();
 
 		std::pair<int, int> selectPolarIndivs(const int seq, const int interval);   // 寻找最差和最好的个体位置,返回<worst, best>
-		// int randomPickIndiv();
+		int randomPickIndiv();                                                // 依据个体的fitness随机选取一个个体，返回个体位置
 		template<std::size_t... I>
 		R callFitFunc(double* args, const opt::index_seq<I...>&);             // 调用适应度函数
 		bool getStopFlag();                                                   // 判断是否结束迭代
 	};
-
-	/******************************************* Helper Functions*****************************************************/
-	template<class R, class... Args>
-	GAGroup<R(Args...)> createGAGroup(R(*func)(Args...), const int N = 1000)
-	{
-		return GAGroup<R(Args...)>(func, N);
-	}
-	/*****************************************************************************************************************/
 
 	/******************************************* 构造与析构 ***********************************************************/
 	// 构造函数，需提供供适应度函数及种群数量
@@ -141,10 +115,8 @@ namespace opt
 		fitArrayCache(nullptr),
 		mutateProb(0.1),
 		crossProb(0.6),
-		thread_sync(this),
-		//debug
-		note(groupSize, std::vector<double>{0,0,0})
-	{
+		thread_sync(this)
+	{ 
 		// 分配个体内存，但不构造个体(Indivadual无默认构造),最后一个位置用于存放最优个体
 		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
 		this->tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
@@ -379,58 +351,18 @@ namespace opt
 		return groupSize;
 	}
 
-	/************************************************************************/
-	/************************************************************************/
-	/************************************************************************/
-	// 获取最优个体
+	// 获取历次迭代的最优解
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::test()
+	std::vector<Individual> GAGroup<R(Args...)>::getBestIndivs()
 	{
-		using namespace std;
+		return bestIndivs;
+	}
 
-		// 优化结果的基因与fitness
-		std::vector<double> vec;
-		for (int i = 0; i < nVars; i++)
-		{
-			vec.push_back(bestIndivs.back().vars[i]);
-		}
-		vec.push_back(bestIndivs.back().fitness);
-
-		// 输出优化结果
-		std::cout << "Thread number: " << thread_sync.threadNum << std::endl;
-		
-		// 输出停止条件
-		// Stop Code : -1-未停止; 0-最优解收敛于稳定值; 1-达到最大迭代次数; 2-达到最大迭代时间; 3-人为停止迭代
-		switch (group_state.stopCode)
-		{
-		case 0:
-			std::cout << "Stop condition: reach the convergency." << std::endl;
-			break;
-		case 1:
-			std::cout << "Stop condition: reach the max generation." << std::endl;
-			break;
-		case 2:
-			std::cout << "Stop condition: reach the max time." << std::endl;
-			break;
-		}
-
-		cout << vec[0] << endl;
-		cout << vec[1] << endl;
-		cout << "fitness: " << vec[2] << endl;
-
-		// 输出子代最优解进化过程
-		cout << "\n*********************************" << endl;
-		cout << "子代最优解进化过程：" << endl;
-		cout << bestIndivs[0].fitness << endl;
-		cout << endl;
-		for (size_t i = 1; i < bestIndivs.size(); i++)
-		{
-			if (bestIndivs[i].fitness != bestIndivs[i - 1].fitness)
-			{
-				cout << bestIndivs[i].fitness << endl;
-				cout << endl;
-			}
-		}
+	//
+	template<class R, class... Args>
+	int GAGroup<R(Args...)>::getStopCode()
+	{
+		return group_state.stopCode;
 	}
 
 	/******************************************************************************************************************/
@@ -440,10 +372,6 @@ namespace opt
 	{
 		// 初始化种群
 		initGroup();
-
-		//debug
-		printIndivs(indivs, groupSize, note);
-		//////////////////////////////
 
 		// 若种群满足进化条件
 		if (group_state.runable())
@@ -542,11 +470,6 @@ namespace opt
 			// 随机选取两个个体作为父代
 			Index_M = randomPickIndiv();
 			Index_F = randomPickIndiv();
-
-			//debug
-			note[i] = std::vector<double>{ double(Index_M), double(Index_F),indivs[Index_M].fitness };
-			note[i + 1] = std::vector<double>{ double(Index_M), double(Index_F),indivs[Index_F].fitness };
-			////////////////////////////////////
 
 			// 生成子代个体, 存放于缓存数组tempIndivs中
 			for (int j = 0; j < nVars; j++)
@@ -706,27 +629,12 @@ namespace opt
 		{	
 			updateFitArrayCache();            // 更新更新轮盘赌刻度线
 
-			//debug
-			file.open("mydata.txt", ios::app);
-			file << "FitArry：";
-			for (int i = 0; i < groupSize; i++)
-			{
-				file << fitArrayCache[i+1] - fitArrayCache[i] << "  ";
-			}
-			file << std::endl;
-			file.close();
-			////////////////////////////////
-
 			crossover(0);                     // 交叉
 			switchIndivArray();               // 交换个体数组
 			mutate(0);                        // 变异
 			select(0);                        // 环境选择			
 			updateStopState();                // 更新停止状态
 			
-			// debug
-			printIndivs(indivs, groupSize, note);
-			///////////////////////////
-
 			// 判断是否到达停止条件
 			if (getStopFlag())
 			{
