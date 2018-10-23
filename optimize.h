@@ -1,7 +1,7 @@
 #ifndef _OPTIMIZE_ALGORITHM_
 #define _OPTIMIZE_ALGORITHM_
 
-#include "ga.h"
+#include "ga\ga.h"
 
 namespace opt
 {

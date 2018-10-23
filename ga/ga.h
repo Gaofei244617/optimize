@@ -11,7 +11,7 @@
 #include "individual.h"
 #include "range_random.h"
 #include "opt_time.h"
-#include "GA_GroupState.h"
+#include "ga_GroupState.h"
 #include "cross_factor.h"
 #include "mutate_factor.h"
 #include "ga_thread_sync.h"

@@ -1,6 +1,4 @@
-/*
-指定区间的随机数生成函数
-*/
+/* 指定区间的随机数生成函数 */
 #ifndef _RANGE_RANDOM_
 #define _RANGE_RANDOM_
 
