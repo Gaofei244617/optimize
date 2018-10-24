@@ -1,4 +1,5 @@
 #include "Individual.h"
+#include <string>
 
 namespace opt
 {

@@ -68,10 +68,10 @@ namespace opt
 		int getGeneration()const;                                             // 获得当前种群代数
 		int getGroupSize()const;                                              // 获得当前种群个体数量	
 		std::vector<Individual> getBestIndivs();                              // 获取历次迭代的最优解
-		int getStopCode();
+		int getStopCode();                                                    // 获取Stop Code
 
-		bool start();
-		void wait_result();                                                   // 等待进化结果
+		bool start();                                                         // 开始迭代进化
+		void wait_result();                                                   // 阻塞当前线程,等待优化结果
 		
 		bool pause();                                                         // 停止进化
 		bool proceed();                                                       // 继续迭代    
