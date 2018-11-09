@@ -314,6 +314,7 @@ namespace opt
 		crossProb = p;
 	}
 
+
 	// 设置并行计算的线程数，默认为1
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setThreadNum(const int NUM)
@@ -485,7 +486,7 @@ namespace opt
 		int Index_F = 0;             // 母个体
 		double rand_cross = 0;       // 随机数缓存   
 
-		int thread_num = 1;
+		int thread_num = 1;          // 线程数
 		if (thread_sync != nullptr)
 		{
 			thread_num = thread_sync->threadNum;
@@ -534,7 +535,7 @@ namespace opt
 	{
 		double rand_num = 0; // 随机数
 
-		int thread_num = 1;
+		int thread_num = 1;  // 线程数
 		if (thread_sync != nullptr)
 		{
 			thread_num = thread_sync->threadNum;
@@ -563,7 +564,7 @@ namespace opt
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::select(const int seq)
 	{
-		int thread_num = 1;
+		int thread_num = 1; // 线程数
 		if (thread_sync != nullptr)
 		{
 			thread_num = thread_sync->threadNum;
@@ -612,11 +613,9 @@ namespace opt
 	template<class R, class ...Args>
 	void GAGroup<R(Args...)>::run_multi(const int seq)
 	{
-		int i = 0;
 		while (true)
 		{
 			/////////////////////////////// Crossover ///////////////////////////////
-			// 临界区
 			{
 				std::unique_lock<std::mutex> lck(thread_sync->mtx);
 				thread_sync->cv.wait(lck, [this, &seq]() {
@@ -635,7 +634,6 @@ namespace opt
 			thread_sync->cv.notify_all();
 
 			/////////////////////////////// Mutate ///////////////////////////////
-		    // 临界区
 			{
 				std::unique_lock<std::mutex> lck(thread_sync->mtx);
 				thread_sync->cv.wait(lck, [this, &seq]() {
@@ -652,7 +650,6 @@ namespace opt
 			thread_sync->cv.notify_all();
 
 			/////////////////////////////// Select ///////////////////////////////
-		    // 临界区
 			{
 				std::unique_lock<std::mutex> lck(thread_sync->mtx);
 				thread_sync->cv.wait(lck, [this, &seq]() {
