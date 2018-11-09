@@ -44,11 +44,11 @@ double test_Func2(double x, double y)
 
 int main()
 {	
-	auto a = opt::createGAGroup(test_Func2,5);
+	auto a = opt::createGAGroup(test_Func2,50);
 	a.setBoundary({ {0, 25}, {0, 35} });
 	a.setCrossProb(0.95);
 		
-	a.setMaxGeneration(20);
+	a.setMaxGeneration(1000);
 	//a.setMaxRuntime(Second(0.6));
 		
 	a.setThreadNum(4);
@@ -91,7 +91,7 @@ int main()
 			cout << endl;
 		}
 	}
-	////////////////////////////////////////////////////////////////////////////////////////////////
+	//////////////////////////////////////////////////////////////////////////////////////////////
 
 	//decltype(a) b(a);
 	

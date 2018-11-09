@@ -2,6 +2,9 @@
 
 ## ¿‡∂®“Â
 
+$$a^2=b^2+c^2$$
+$$\int_{0}^{\frac{\pi}{2}}(x^2+3)dx$$
+
 ```cpp
 namespace opt
 {

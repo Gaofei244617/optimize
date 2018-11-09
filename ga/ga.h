@@ -17,6 +17,9 @@
 #include "ga_thread_sync.h"
 #include "index_seq.h"
 
+/////////////////////
+#include <iostream>
+
 namespace opt
 {
 	template<class F> class GAGroup;
@@ -45,7 +48,7 @@ namespace opt
 		std::thread single_thread;                                            // 单线程
 		
 		GA_GroupState group_state;                                            // 种群状态
-		GAThreadSync<R, Args...> thread_sync;                                 // 线程同步器  
+		std::unique_ptr< GAThreadSync<R, Args...> > thread_sync;              // 线程同步器 
 
 	public:
 		GAGroup(R(*f)(Args...), const int size = 1000);                       // 构造函数，构造一个种群，需提供适应度函数及种群数量
@@ -74,8 +77,8 @@ namespace opt
 		void wait_result();                                                   // 阻塞当前线程,等待优化结果
 		
 		bool pause();                                                         // 停止进化
-		bool proceed();                                                       // 继续迭代    
-
+		bool proceed();                                                       // 继续迭代 
+		
 	private:
 		void initGroup();                                                     // 初始化种群个体
 
@@ -83,10 +86,6 @@ namespace opt
 		void mutate(const int seq);                                           // 变异(单线程模式)
 		void select(const int seq);                                           // 选择(单线程模式)
 		
-		void crossover_multi(const int seq);                                  // 交叉(多线程模式)
-		void mutate_multi(const int seq);                                     // 变异(多线程模式)
-		void select_multi(const int seq);                                     // 选择(多线程模式)
-
 		void run();
 		void run_multi(const int seq);
 		
@@ -98,7 +97,7 @@ namespace opt
 		int randomPickIndiv();                                                // 依据个体的fitness随机选取一个个体，返回个体位置
 		template<std::size_t... I>
 		R callFitFunc(double* args, const opt::index_seq<I...>&);             // 调用适应度函数
-		bool getStopFlag();                                                   // 判断是否结束迭代
+		bool flushStopFlag();                                                   // 判断是否结束迭代
 	};
 
 	/******************************************* 构造与析构 ***********************************************************/
@@ -108,14 +107,15 @@ namespace opt
 		:name("None"),
 		groupSize(size + size % 2),
 		nVars(sizeof...(Args)),
-		fitFunc(f),
 		indivs(nullptr),
 		tempIndivs(nullptr),
+		fitFunc(f),
 		bound(nullptr),
 		fitArrayCache(nullptr),
 		mutateProb(0.1),
 		crossProb(0.6),
-		thread_sync(this)
+		group_state(),
+		thread_sync(nullptr)
 	{ 
 		// 分配个体内存，但不构造个体(Indivadual无默认构造),最后一个位置用于存放最优个体
 		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
@@ -141,15 +141,15 @@ namespace opt
 		:name(other.name),
 		groupSize(other.groupSize),
 		nVars(other.nVars),
-		fitFunc(other.fitFunc),
-		mutateProb(other.mutateProb),
-		crossProb(other.crossProb),
 		indivs(nullptr),
 		tempIndivs(nullptr),
+		fitFunc(other.fitFunc),
 		bound(nullptr),
 		fitArrayCache(nullptr),
+		mutateProb(other.mutateProb),
+		crossProb(other.crossProb),
 		group_state(other.group_state),
-		thread_sync(other.thread_sync, this)
+		thread_sync(nullptr)
 	{
 		// 分配个体内存，但不构造个体(Indivadual无默认构造)
 		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
@@ -176,6 +176,12 @@ namespace opt
 		{
 			fitArrayCache[i] = (other.fitArrayCache)[i];
 		}
+
+		// 线程同步器
+		if (other.thread_sync != nullptr)
+		{
+			thread_sync.reset(new GAThreadSync<R, Args...>(*(other.thread_sync), this));
+		}
 	}
 
 	// 移动构造
@@ -191,7 +197,8 @@ namespace opt
 		fitArrayCache(other.fitArrayCache),
 		mutateProb(other.mutateProb),
 		crossProb(other.crossProb),
-		group_state(other.group_state)
+		group_state(other.group_state),
+		thread_sync(std::move(other.thread_sync))
 	{
 		other.indivs = nullptr;
 		other.tempIndivs = nullptr;
@@ -311,11 +318,12 @@ namespace opt
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setThreadNum(const int NUM)
 	{
-		if (NUM >= 1)
+		if (NUM > 1)
 		{
-			thread_sync.setThreadNum(NUM);
+			thread_sync.reset(new GAThreadSync<R, Args...>(this));
+			thread_sync->setThreadNum(NUM);
 		}
-		else
+		if(NUM < 1)
 		{
 			throw std::string("Thread number error.");
 		}
@@ -358,7 +366,7 @@ namespace opt
 		return bestIndivs;
 	}
 
-	//
+	// 
 	template<class R, class... Args>
 	int GAGroup<R(Args...)>::getStopCode()
 	{
@@ -378,10 +386,10 @@ namespace opt
 		{
 			group_state.startTime = std::chrono::steady_clock::now();
 			
-			if (thread_sync.threadNum > 1) // 多线程模式
+			if (thread_sync != nullptr) // 多线程模式
 			{
 				// 构造种群交叉线程组
-				for (int i = 0; i < thread_sync.threadNum; i++)
+				for (int i = 0; i < thread_sync->threadNum; i++)
 				{
 					vec_run.emplace_back(&GAGroup<R(Args...)>::run_multi, this, i);
 				}
@@ -400,22 +408,31 @@ namespace opt
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::wait_result()
 	{
-		// 单线程模式
-		if (thread_sync.threadNum == 1)
+		if (thread_sync == nullptr) // 单线程模式
 		{
 			single_thread.join();
 		}
-
-		// 多线程模式
-		if (thread_sync.threadNum > 1)
+		else  // 多线程模式
 		{
-			for (int i = 0; i < thread_sync.threadNum; i++)
+			for (int i = 0; i < thread_sync->threadNum; i++)
 			{
 				vec_run[i].join();
 			}
 		}
 	}
 
+	// 停止进化
+	template<class R, class... Args>
+	bool GAGroup<R(Args...)>::pause()
+	{
+		thread_sync->sleep = true;
+	}
+	// 继续迭代 
+	template<class R, class... Args>
+	bool GAGroup<R(Args...)>::proceed()
+	{
+		thread_sync->sleep = false;
+	}
 	/******************************************* Private Functions *****************************************************/
 	// 初始化种群     
 	template<class R, class... Args>
@@ -443,12 +460,16 @@ namespace opt
 			// 3.初始化fitArrayCache数组
 			updateFitArrayCache();
 
-			//4.设置初始化标志位
+			// 4.设置初始化标志位
 			group_state.initFlag = true;
 
-			thread_sync.crossReady = true;
-			thread_sync.mutReady = false;
-			thread_sync.selectReady = false;
+			// 5.初始化线程同步器
+			if (thread_sync != nullptr)
+			{
+				thread_sync->crossReady = true;
+				thread_sync->mutReady = false;
+				thread_sync->selectReady = false;
+			}
 		}
 		else
 		{
@@ -462,10 +483,16 @@ namespace opt
 	{
 		int Index_M = 0;             // 父个体
 		int Index_F = 0;             // 母个体
-		double rand_cross = 0;       // 随机数缓存    
+		double rand_cross = 0;       // 随机数缓存   
+
+		int thread_num = 1;
+		if (thread_sync != nullptr)
+		{
+			thread_num = thread_sync->threadNum;
+		}
 
 		// 随机选取个体交叉, fitness越大，被选中的概率越大
-		for (int i = seq * 2; i < groupSize; i += 2 * thread_sync.threadNum)
+		for (int i = seq * 2; i < groupSize; i += 2 * thread_num)
 		{
 			// 随机选取两个个体作为父代
 			Index_M = randomPickIndiv();
@@ -507,8 +534,14 @@ namespace opt
 	{
 		double rand_num = 0; // 随机数
 
+		int thread_num = 1;
+		if (thread_sync != nullptr)
+		{
+			thread_num = thread_sync->threadNum;
+		}
+
 		// 每个个体的变异
-		for (int i = seq; i < groupSize; i += thread_sync.threadNum)
+		for (int i = seq; i < groupSize; i += thread_num)
 		{
 			// 每个基因的变异
 			for (int j = 0; j < nVars; j++)
@@ -530,8 +563,14 @@ namespace opt
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::select(const int seq)
 	{
+		int thread_num = 1;
+		if (thread_sync != nullptr)
+		{
+			thread_num = thread_sync->threadNum;
+		}
+
 		// 寻找子代最差和最优个体
-		std::tie(group_state.worstIndex, group_state.bestIndex) = this->selectPolarIndivs(seq, thread_sync.threadNum);
+		std::tie(group_state.worstIndex, group_state.bestIndex) = this->selectPolarIndivs(seq, thread_num);
 		
 		// 淘汰子代最差个体, 用父代最优个体取代
 		indivs[group_state.worstIndex] = bestIndivs.back();
@@ -545,80 +584,6 @@ namespace opt
 		{
 			bestIndivs.push_back(bestIndivs.back());
 		}
-	}
-
-	// 交叉(多线程模式)
-	template<class R, class... Args>
-	void GAGroup<R(Args...)>::crossover_multi(const int seq)
-	{
-		// 临界区
-		{
-			std::unique_lock<std::mutex> lck(thread_sync.mtx);
-			thread_sync.cv.wait(lck, [this, &seq]() {return !(this->thread_sync).cross_flag[seq] && (this->thread_sync).crossReady || this->getStopFlag(); });
-		}// 离开作用域, gm.thread_state.mtx的unlock()方法自动执行
-
-		crossover(seq);
-
-		// 线程同步
-		thread_sync.mtx.lock();
-		thread_sync.cross_sync(seq); // Change this function
-		thread_sync.mtx.unlock();
-
-		thread_sync.cv.notify_all();
-	}
-
-	// 变异(多线程模式)
-	template<class R, class... Args>
-	void GAGroup<R(Args...)>::mutate_multi(const int seq)
-	{
-		// 临界区
-		{
-			std::unique_lock<std::mutex> lck(thread_sync.mtx);
-			thread_sync.cv.wait(lck, [this, &seq]() {return !(this->thread_sync).mut_flag[seq] && (this->thread_sync).mutReady || this->getStopFlag(); });
-		}
-
-		mutate(seq);
-		
-		// 线程同步
-		thread_sync.mtx.lock();
-		thread_sync.mutate_sync(seq);
-		thread_sync.mtx.unlock();
-
-		thread_sync.cv.notify_all();
-	}
-
-	// 选择(多线程模式)
-	template<class R, class ...Args>
-	void GAGroup<R(Args...)>::select_multi(const int seq)
-	{
-		// 临界区
-		{
-			std::unique_lock<std::mutex> lck(thread_sync.mtx);
-			thread_sync.cv.wait(lck, [this, &seq]() {return !(this->thread_sync).sel_flag[seq] && (this->thread_sync).selectReady || this->getStopFlag(); });
-		}
-
-		int worst_temp = 0;
-		int best_temp = 0;
-
-		// 寻找子代最差和最优个体
-		std::tie(worst_temp, best_temp) = this->selectPolarIndivs(seq, thread_sync.threadNum);
-
-		// 线程同步
-		thread_sync.mtx.lock();
-		// 更新最优与最差个体位置;
-		if (indivs[worst_temp].fitness < indivs[group_state.worstIndex].fitness)
-		{
-			group_state.worstIndex = worst_temp;
-		}
-		if (indivs[best_temp].fitness > indivs[group_state.bestIndex].fitness)
-		{
-			group_state.bestIndex = best_temp;
-		}
-
-		thread_sync.select_sync(seq);
-		thread_sync.mtx.unlock();
-
-		thread_sync.cv.notify_all();
 	}
 
 	// 进化迭代(单线程模式)
@@ -636,7 +601,7 @@ namespace opt
 			updateStopState();                // 更新停止状态
 			
 			// 判断是否到达停止条件
-			if (getStopFlag())
+			if (flushStopFlag())
 			{
 				return;
 			}
@@ -647,17 +612,84 @@ namespace opt
 	template<class R, class ...Args>
 	void GAGroup<R(Args...)>::run_multi(const int seq)
 	{
+		int i = 0;
 		while (true)
 		{
-			crossover_multi(seq);
-			mutate_multi(seq);
-			select_multi(seq);
-
-			// 是否停止迭代
-			if (getStopFlag())
+			/////////////////////////////// Crossover ///////////////////////////////
+			// 临界区
 			{
-				return;
+				std::unique_lock<std::mutex> lck(thread_sync->mtx);
+				thread_sync->cv.wait(lck, [this, &seq]() {
+					return !(this->thread_sync->cross_flag[seq]) && this->thread_sync->crossReady;
+				});
+			}// 离开作用域, gm.thread_state.mtx的unlock()方法自动执行
+			
+			if (group_state.stopFlag == true) { return; }
+
+			crossover(seq);
+
+			// 线程同步
+			thread_sync->mtx.lock();
+			thread_sync->cross_sync(seq);
+			thread_sync->mtx.unlock();
+			thread_sync->cv.notify_all();
+
+			/////////////////////////////// Mutate ///////////////////////////////
+		    // 临界区
+			{
+				std::unique_lock<std::mutex> lck(thread_sync->mtx);
+				thread_sync->cv.wait(lck, [this, &seq]() {
+					return !(this->thread_sync->mut_flag[seq]) && this->thread_sync->mutReady;
+				});
 			}
+
+			mutate(seq);
+
+			// 线程同步
+			thread_sync->mtx.lock();
+			thread_sync->mutate_sync(seq);
+			thread_sync->mtx.unlock();
+			thread_sync->cv.notify_all();
+
+			/////////////////////////////// Select ///////////////////////////////
+		    // 临界区
+			{
+				std::unique_lock<std::mutex> lck(thread_sync->mtx);
+				thread_sync->cv.wait(lck, [this, &seq]() {
+					return !(this->thread_sync->sel_flag[seq]) && this->thread_sync->selectReady;
+				});
+			}
+
+			int worst_temp = 0;
+			int best_temp = 0;
+
+			int thread_num = 1;
+			if (thread_sync != nullptr)
+			{
+				thread_num = thread_sync->threadNum;
+			}
+
+			// 寻找子代最差和最优个体
+			std::tie(worst_temp, best_temp) = this->selectPolarIndivs(seq, thread_num);
+
+			// 线程同步
+			thread_sync->mtx.lock();
+
+			// 更新最优与最差个体位置;
+			if (indivs[worst_temp].fitness < indivs[group_state.worstIndex].fitness)
+			{
+				group_state.worstIndex = worst_temp;
+			}
+			if (indivs[best_temp].fitness > indivs[group_state.bestIndex].fitness)
+			{
+				group_state.bestIndex = best_temp;
+			}
+
+			thread_sync->select_sync(seq);
+			thread_sync->mtx.unlock();
+			thread_sync->cv.notify_all();
+
+			if (group_state.stopFlag == true) { return; }
 		}
 	}
 
@@ -779,7 +811,7 @@ namespace opt
 
 	// 判断是否结束迭代
 	template<class R, class... Args>
-	bool GAGroup<R(Args...)>::getStopFlag()
+	bool GAGroup<R(Args...)>::flushStopFlag()
 	{
 		// Stop Code : -1-未停止; 0-最优解收敛于稳定值; 1-达到最大迭代次数; 2-达到最大迭代时间; 3-人为停止迭代
 

@@ -4,7 +4,7 @@
 namespace opt
 {
 	// 构造函数，n:变量个数，str:隶属的种群
-	Individual::Individual(int n) : nVars(n), fitness(0)
+	Individual::Individual(const int n) : nVars(n), fitness(0)
 	{
 		vars = new double[n]();
 	}
