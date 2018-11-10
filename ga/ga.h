@@ -9,7 +9,8 @@
 #include <thread>
 
 #include "individual.h"
-#include "range_random.h"
+//#include "range_random.h"
+#include "roulette.h"
 #include "opt_time.h"
 #include "ga_GroupState.h"
 #include "cross_factor.h"
@@ -39,7 +40,7 @@ namespace opt
 		Individual* tempIndivs;                                               // 子代个体缓存区
 		R(*fitFunc)(Args...);                                                 // 适应度函数指针
 		double(*bound)[2];                                                    // 每个变量(基因)的区间, 以数组指针表示
-		double* fitArrayCache;                                                // 轮盘赌刻度线: fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
+		Roulette<double> roulette;                                            // 
 		double mutateProb;                                                    // 个体变异概率,默认p = 0.1
 		double crossProb;                                                     // 个体交叉概率, 默认p = 0.6
 		std::vector<Individual> bestIndivs;                                   // 记录每次迭代的最优个体	
@@ -61,9 +62,9 @@ namespace opt
 		void setBoundary(const GenBound& b);                                  // 设置变量区间
 		void setMaxGeneration(const unsigned int N);                          // 设置最大迭代次数
 		void setMaxRuntime(const Second& time);                               // 设置最大运行时间（秒）
-		void setStopTol(long double t, unsigned int N = 5);                   // 设置最优解停止误差
-		void setMutateProb(double p);                                         // 设置基因变异概率
-		void setCrossProb(double p);                                          // 设置交叉概率
+		void setStopTol(const long double t, const unsigned int N = 5);       // 设置最优解停止误差
+		void setMutateProb(const double p);                                   // 设置基因变异概率
+		void setCrossProb(const double p);                                    // 设置交叉概率
 		void setThreadNum(const int NUM);                                     // 设置并行计算的线程数，默认为1
 
 		const std::string getName()const;                                     // 获取种群名称
@@ -89,12 +90,11 @@ namespace opt
 		void run();
 		void run_multi(const int seq);
 		
-		void updateFitArrayCache();                                           // 更新轮盘赌刻度线
+		void updateRoulette();                                           // 更新轮盘赌刻度线
 		void updateStopState();                                               // 更新种群停止状态
 		void switchIndivArray();
 
 		std::pair<int, int> selectPolarIndivs(const int seq, const int interval);   // 寻找最差和最好的个体位置,返回<worst, best>
-		int randomPickIndiv();                                                // 依据个体的fitness随机选取一个个体，返回个体位置
 		template<std::size_t... I>
 		R callFitFunc(double* args, const opt::index_seq<I...>&);             // 调用适应度函数
 		bool flushStopFlag();                                                   // 判断是否结束迭代
@@ -111,7 +111,7 @@ namespace opt
 		tempIndivs(nullptr),
 		fitFunc(f),
 		bound(nullptr),
-		fitArrayCache(nullptr),
+		roulette(groupSize + 1),
 		mutateProb(0.1),
 		crossProb(0.6),
 		group_state(),
@@ -130,9 +130,6 @@ namespace opt
 
 		// 变量区间
 		bound = new double[nVars][2];
-
-		// fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
-		fitArrayCache = new double[groupSize + 1]();
 	}
 
 	// 复制构造
@@ -145,7 +142,7 @@ namespace opt
 		tempIndivs(nullptr),
 		fitFunc(other.fitFunc),
 		bound(nullptr),
-		fitArrayCache(nullptr),
+		roulette(other.roulette),
 		mutateProb(other.mutateProb),
 		crossProb(other.crossProb),
 		group_state(other.group_state),
@@ -170,13 +167,6 @@ namespace opt
 			bound[i][1] = (other.bound)[i][1];
 		}
 
-		// fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
-		fitArrayCache = new double[groupSize + 1]();
-		for (int i = 0; i < groupSize + 1; i++)
-		{
-			fitArrayCache[i] = (other.fitArrayCache)[i];
-		}
-
 		// 线程同步器
 		if (other.thread_sync != nullptr)
 		{
@@ -194,7 +184,7 @@ namespace opt
 		tempIndivs(other.tempIndivs),
 		fitFunc(other.fitFunc),
 		bound(other.bound),
-		fitArrayCache(other.fitArrayCache),
+		roulette(std::move(other.roulette)),
 		mutateProb(other.mutateProb),
 		crossProb(other.crossProb),
 		group_state(other.group_state),
@@ -203,7 +193,6 @@ namespace opt
 		other.indivs = nullptr;
 		other.tempIndivs = nullptr;
 		other.bound = nullptr;
-		other.fitArrayCache = nullptr;
 	}
 
 	// 析构函数
@@ -236,9 +225,6 @@ namespace opt
 
 		// 释放Boundary数组指针
 		delete[] bound;
-
-		// 释放缓存数组
-		delete[] fitArrayCache;
 	}
 	/*****************************************************************************************************************/
 
@@ -293,7 +279,7 @@ namespace opt
 
 	// 设置最优解停止误差
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::setStopTol(long double t, unsigned int N)
+	void GAGroup<R(Args...)>::setStopTol(const long double t, const unsigned int N)
 	{
 		group_state.converCount = N;
 		group_state.setStopTolFlag = true;
@@ -302,18 +288,17 @@ namespace opt
 
 	// 设置基因变异概率
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::setMutateProb(double p)
+	void GAGroup<R(Args...)>::setMutateProb(const double p)
 	{
 		mutateProb = p;
 	}
 
 	// 设置基因交叉概率
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::setCrossProb(double p)
+	void GAGroup<R(Args...)>::setCrossProb(const double p)
 	{
 		crossProb = p;
 	}
-
 
 	// 设置并行计算的线程数，默认为1
 	template<class R, class... Args>
@@ -367,7 +352,7 @@ namespace opt
 		return bestIndivs;
 	}
 
-	// 
+	// 获取停止代码
 	template<class R, class... Args>
 	int GAGroup<R(Args...)>::getStopCode()
 	{
@@ -458,8 +443,8 @@ namespace opt
 			std::tie(group_state.worstIndex, group_state.bestIndex) = this->selectPolarIndivs(0, 1);
 			bestIndivs.push_back(indivs[group_state.bestIndex]);                     // 记录最优解
 
-			// 3.初始化fitArrayCache数组
-			updateFitArrayCache();
+			// 3.更新轮盘赌刻度线
+			updateRoulette();
 
 			// 4.设置初始化标志位
 			group_state.initFlag = true;
@@ -496,8 +481,8 @@ namespace opt
 		for (int i = seq * 2; i < groupSize; i += 2 * thread_num)
 		{
 			// 随机选取两个个体作为父代
-			Index_M = randomPickIndiv();
-			Index_F = randomPickIndiv();
+			Index_M = roulette.roll();
+			Index_F = roulette.roll();
 
 			// 生成子代个体, 存放于缓存数组tempIndivs中
 			for (int j = 0; j < nVars; j++)
@@ -593,7 +578,7 @@ namespace opt
 	{
 		while (true)
 		{	
-			updateFitArrayCache();            // 更新更新轮盘赌刻度线
+			updateRoulette();            // 更新更新轮盘赌刻度线
 
 			crossover(0);                     // 交叉
 			switchIndivArray();               // 交换个体数组
@@ -692,7 +677,7 @@ namespace opt
 
 	// 更新轮盘赌刻度线
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::updateFitArrayCache()
+	void GAGroup<R(Args...)>::updateRoulette()
 	{
 		int worst = 0;
 
@@ -705,10 +690,10 @@ namespace opt
 			}
 		}
 
-        // fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
+		// 更新轮盘赌刻度线
 		for (int i = 1; i < groupSize + 1; i++)
 		{
-			fitArrayCache[i] = fitArrayCache[i - 1] + (indivs[i - 1].fitness - indivs[worst].fitness);
+			roulette[i] = roulette[i - 1] + (indivs[i - 1].fitness - indivs[worst].fitness);
 		}
 	}
 
@@ -765,37 +750,6 @@ namespace opt
 		}
 
 		return std::make_pair(worst, best);
-	}
-
-	// 依据个体的fitness随机选取一个个体，返回个体位置
-	template<class R, class... Args>
-	int GAGroup<R(Args...)>::randomPickIndiv()
-	{
-		//double fitArrayCache[6] = {0,1,22,100,103,104};
-		//int groupSize = 5;
-
-		// fitArrayCache[n] - fitArrayCache[n-1] == Individual[n-1].fitness - minFitness
-		double temp = random_real(0, fitArrayCache[groupSize]);
-
-		int lowIndex = 0;
-		int upIndex = groupSize;
-		int tempIndex;
-
-		// 二分法查找随机个体位置,时间复杂度log_n
-		// 通过逐步移动lowIndex和upIndex代表的下标位置，每次将搜索区间减小一半
-		while (upIndex - lowIndex > 1)
-		{
-			tempIndex = (lowIndex + upIndex) / 2 + (lowIndex + upIndex) % 2;
-			if (temp <= fitArrayCache[tempIndex])
-			{
-				upIndex = tempIndex;
-			}
-			else
-			{
-				lowIndex = tempIndex;
-			}
-		}
-		return lowIndex;  // up = 1, low = 0 时随机个体是indivs[0]
 	}
 
 	// 调用适应度函数

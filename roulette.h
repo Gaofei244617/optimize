@@ -21,7 +21,8 @@ namespace opt
 		~Roulette();                                            // 析构函数
 
 		int roll();                                             // 轮盘随机转动
-		void resetMark(const int INDEX, const T& NUM);          // 重设刻度线的值
+		//void setMark(const int INDEX, const T& NUM);          // 重设刻度线的值
+		T& operator[](const int& i);
 	};
 
 	// 构造函数
@@ -83,7 +84,7 @@ namespace opt
 			while (upIndex - lowIndex > 1)
 			{
 				tempIndex = (lowIndex + upIndex) / 2 + (lowIndex + upIndex) % 2;
-				if (temp <= fitArrayCache[tempIndex])
+				if (temp <= tick_mark[tempIndex])
 				{
 					upIndex = tempIndex;
 				}
@@ -100,11 +101,18 @@ namespace opt
 		}
 	}
 
-	// 重设刻度线的值
+	//// 重设刻度线的值
+	//template<class T>
+	//inline void Roulette<T>::setMark(const int INDEX, const T& NUM)
+	//{
+	//	tick_mark[INDEX] = NUM;
+	//}
+
+	// 获取轮盘赌刻度线
 	template<class T>
-	inline void Roulette<T>::resetMark(const int INDEX, const T& NUM)
+	T& Roulette<T>::operator[](const int& i)
 	{
-		tick_mark[INDEX] = NUM;
+		return tick_mark[i];
 	}
 }
 

@@ -143,7 +143,7 @@ namespace opt
 			}
 			
 			// 更新轮盘赌刻度线
-			ga->updateFitArrayCache();
+			ga->updateRoulette();
 
 			// 更新GA种群停止状态
 			ga->updateStopState();
