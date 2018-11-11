@@ -24,7 +24,7 @@ namespace opt
 		bool crossReady;                                  // 交叉操作标志
 		bool mutReady;                                    // 变异操作标志
 		bool selectReady;                                 // 选择操作标志
-		bool sleep;                                       // 
+		bool sleep;
 		int threadNum;                                    // 并行计算使用的线程数
 		bool_array cross_flag;                            // 并行计算: 交叉线程状态标志
 		bool_array mut_flag;                              // 并行计算: 变异线程状态标志
@@ -32,8 +32,9 @@ namespace opt
 		GAGroup<R(Args...)>* ga;                          // 同步器关联的GA种群
 
 	public:
+
 		// 常规构造
-		GAThreadSync(GAGroup<R(Args...)>* ptr) 
+		GAThreadSync(GAGroup<R(Args...)>* ptr)
 			:crossReady(false),
 			mutReady(false),
 			selectReady(false),
@@ -58,13 +59,16 @@ namespace opt
 			ga(ptr)
 		{}
 
+		// 移动构造
+		GAThreadSync(GAThreadSync&& other) = delete;
+
 		void setThreadNum(const int N);	            // 设置线程数量
 
 		void cross_sync(const int thread_seq);		// "交叉"线程同步
 		void mutate_sync(const int thread_seq);		// "变异"线程同步
 		void select_sync(const int thread_seq);		// "选择"线程同步
 	};
-    
+
 	///////////////////////////////////////////////////////////////////////////////////////////
 	// 设置线程数量
 	template<class R, class... Args>
@@ -82,7 +86,7 @@ namespace opt
 	{
 		cross_flag[thread_seq] = true;
 		selectReady = false;
-		
+
 		// 若交叉线程组全部运行完
 		if (cross_flag.is_all_true())
 		{
@@ -105,7 +109,7 @@ namespace opt
 	{
 		mut_flag[thread_seq] = true;
 		crossReady = false;
-		
+
 		// 若变异线程组全部运行完
 		if (mut_flag.is_all_true())
 		{
@@ -125,7 +129,7 @@ namespace opt
 	{
 		sel_flag[thread_seq] = true;
 		mutReady = false;
-		
+
 		// 若选择线程组全部运行完
 		if (sel_flag.is_all_true())
 		{
@@ -141,9 +145,14 @@ namespace opt
 			{
 				ga->bestIndivs.push_back(ga->bestIndivs.back());
 			}
-			
+
 			// 更新轮盘赌刻度线
 			ga->updateRoulette();
+
+			if (ga->thread_sync->sleep == true)
+			{
+				ga->group_state.sleep = true;
+			}
 
 			// 更新GA种群停止状态
 			ga->updateStopState();

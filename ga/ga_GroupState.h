@@ -20,6 +20,7 @@ namespace opt
 		bool setMaxGeneFlag;                                                  // 是否设置最大迭代次数
 		bool initFlag;                                                        // 是否初始化种群
 		bool stopFlag;                                                        // 迭代停止标志, true:达到停止条件, false:未达到停止条件
+		bool sleep;
 		short stopCode;                                                       // 迭代停止原因,-1:未停止; 0:最优解收敛于稳定值; 1:达到最大迭代次数; 2:达到最大迭代时间; 3.人为停止迭代
 		unsigned int count;                                                   // 最优解波动连续小于停止误差的次数, 波动值连续5次小于停止误差即停止迭代
 
@@ -41,6 +42,7 @@ namespace opt
 			setMaxGeneFlag(false),
 			initFlag(false),
 			stopFlag(false),
+			sleep(false),
 			stopCode(-1),
 			count(0),
 			nGene(0),
@@ -60,12 +62,39 @@ namespace opt
 			setMaxGeneFlag(other.setMaxGeneFlag),
 			initFlag(other.initFlag),
 			stopFlag(other.stopFlag),
+			sleep(other.sleep),
 			stopCode(other.stopCode),
 			count(other.count),
 			nGene(other.nGene),
 			worstIndex(other.worstIndex),
 			bestIndex(other.bestIndex)
 		{}
+
+		// 赋值函数
+		GA_GroupState& operator=(const GA_GroupState& other)
+		{
+			if (this != &other)
+			{
+				stopTol = other.stopTol;
+				maxGene = other.maxGene;
+				converCount = other.converCount;
+				maxRuntime = other.maxRuntime;
+				setBoundFlag = other.setBoundFlag;
+				setRuntimeFlag = other.setRuntimeFlag;
+				setStopTolFlag = other.setStopTolFlag;
+				setMaxGeneFlag = other.setMaxGeneFlag;
+				initFlag = other.initFlag;
+				stopFlag = other.stopFlag;
+				sleep = other.sleep;
+				stopCode = other.stopCode;
+				count = other.count;
+				nGene = other.nGene;
+				worstIndex = other.worstIndex;
+				bestIndex = other.bestIndex;
+			}
+
+			return *this;
+		}
 
 		// 判断种群是否处于可迭代状态
 		// 可迭代条件: (1)设置了变量区间(2)且完成种群初始化(3)且至少设置了最大运行时间、停止误差、最大迭代次数之一
