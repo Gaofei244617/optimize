@@ -9,7 +9,7 @@
 #include <thread>
 
 #include "individual.h"
-//#include "range_random.h"
+#include "range_random.h"
 #include "roulette.h"
 #include "opt_time.h"
 #include "ga_GroupState.h"
@@ -17,9 +17,6 @@
 #include "mutate_factor.h"
 #include "ga_thread_sync.h"
 #include "index_seq.h"
-
-/////////////////////
-#include <iostream>
 
 namespace opt
 {
@@ -35,21 +32,21 @@ namespace opt
 	private:
 		std::string name;                                                     // 种群名称
 		int groupSize;                                                        // 初始种群个体数量，default = 1000；
-		const int nVars;                                                      // 适应度函数包含的变量个数    
+		const int nVars;                                                      // 适应度函数包含的变量个数
 		Individual* indivs;                                                   // 种群个体, 指向groupSize个个体数组(最后一个存放最优个体)
 		Individual* tempIndivs;                                               // 子代个体缓存区
 		R(*fitFunc)(Args...);                                                 // 适应度函数指针
 		double(*bound)[2];                                                    // 每个变量(基因)的区间, 以数组指针表示
-		Roulette<double> roulette;                                            // 
+		Roulette<double> roulette;                                            //
 		double mutateProb;                                                    // 个体变异概率,默认p = 0.1
 		double crossProb;                                                     // 个体交叉概率, 默认p = 0.6
-		std::vector<Individual> bestIndivs;                                   // 记录每次迭代的最优个体	
+		std::vector<Individual> bestIndivs;                                   // 记录每次迭代的最优个体
 
 		std::vector<std::thread> vec_run;                                     // 交叉线程组
 		std::thread single_thread;                                            // 单线程
-		
+
 		GA_GroupState group_state;                                            // 种群状态
-		std::unique_ptr< GAThreadSync<R, Args...> > thread_sync;              // 线程同步器 
+		std::unique_ptr< GAThreadSync<R, Args...> > thread_sync;              // 线程同步器
 
 	public:
 		GAGroup(R(*f)(Args...), const int size = 1000);                       // 构造函数，构造一个种群，需提供适应度函数及种群数量
@@ -68,29 +65,29 @@ namespace opt
 		void setThreadNum(const int NUM);                                     // 设置并行计算的线程数，默认为1
 
 		const std::string getName()const;                                     // 获取种群名称
-		int getNVars()const;                                                  // 获取种群变量个数 
+		int getNVars()const;                                                  // 获取种群变量个数
 		int getGeneration()const;                                             // 获得当前种群代数
-		int getGroupSize()const;                                              // 获得当前种群个体数量	
+		int getGroupSize()const;                                              // 获得当前种群个体数量
 		std::vector<Individual> getBestIndivs();                              // 获取历次迭代的最优解
 		int getStopCode();                                                    // 获取Stop Code
 
 		bool start();                                                         // 开始迭代进化
 		void wait_result();                                                   // 阻塞当前线程,等待优化结果
-		
-		bool pause();                                                         // 停止进化
-		bool proceed();                                                       // 继续迭代 
-		
+
+		void pause();                                                         // 停止进化(为保证数据一致性，需在一次完整迭代后pause)
+		void proceed();                                                       // 继续迭代
+
 	private:
 		void initGroup();                                                     // 初始化种群个体
 
 		void crossover(const int seq);                                        // 交叉(单线程模式)
 		void mutate(const int seq);                                           // 变异(单线程模式)
 		void select(const int seq);                                           // 选择(单线程模式)
-		
-		void run();
-		void run_multi(const int seq);
-		
-		void updateRoulette();                                           // 更新轮盘赌刻度线
+
+		void run();                                                           // 单线程迭代
+		void run_parallel(const int seq);                                     // 并行迭代
+
+		void updateRoulette();                                                // 更新轮盘赌刻度线
 		void updateStopState();                                               // 更新种群停止状态
 		void switchIndivArray();
 
@@ -116,7 +113,7 @@ namespace opt
 		crossProb(0.6),
 		group_state(),
 		thread_sync(nullptr)
-	{ 
+	{
 		// 分配个体内存，但不构造个体(Indivadual无默认构造),最后一个位置用于存放最优个体
 		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
 		this->tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
@@ -309,7 +306,7 @@ namespace opt
 			thread_sync.reset(new GAThreadSync<R, Args...>(this));
 			thread_sync->setThreadNum(NUM);
 		}
-		if(NUM < 1)
+		if (NUM < 1)
 		{
 			throw std::string("Thread number error.");
 		}
@@ -324,7 +321,7 @@ namespace opt
 		return this->name;
 	}
 
-	// 获取种群变量个数 
+	// 获取种群变量个数
 	template<class R, class... Args>
 	int GAGroup<R(Args...)>::getNVars()const
 	{
@@ -371,15 +368,14 @@ namespace opt
 		if (group_state.runable())
 		{
 			group_state.startTime = std::chrono::steady_clock::now();
-			
+
 			if (thread_sync != nullptr) // 多线程模式
 			{
 				// 构造种群交叉线程组
 				for (int i = 0; i < thread_sync->threadNum; i++)
 				{
-					vec_run.emplace_back(&GAGroup<R(Args...)>::run_multi, this, i);
+					vec_run.emplace_back(&GAGroup<R(Args...)>::run_parallel, this, i);
 				}
-
 			}
 			else // 单线程模式
 			{
@@ -407,20 +403,23 @@ namespace opt
 		}
 	}
 
-	// 停止进化
+	// 停止进化(为保证数据一致性，需在一次完整迭代后pause)
 	template<class R, class... Args>
-	bool GAGroup<R(Args...)>::pause()
+	void GAGroup<R(Args...)>::pause()
 	{
 		thread_sync->sleep = true;
 	}
-	// 继续迭代 
+
+	// 继续迭代
 	template<class R, class... Args>
-	bool GAGroup<R(Args...)>::proceed()
+	void GAGroup<R(Args...)>::proceed()
 	{
 		thread_sync->sleep = false;
+		thread_sync->cv.notify_all();
 	}
+
 	/******************************************* Private Functions *****************************************************/
-	// 初始化种群     
+	// 初始化种群
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::initGroup()
 	{
@@ -469,7 +468,7 @@ namespace opt
 	{
 		int Index_M = 0;             // 父个体
 		int Index_F = 0;             // 母个体
-		double rand_cross = 0;       // 随机数缓存   
+		double rand_cross = 0;       // 随机数缓存
 
 		int thread_num = 1;          // 线程数
 		if (thread_sync != nullptr)
@@ -539,7 +538,7 @@ namespace opt
 					indivs[i].vars[j] = mutate_PM(indivs[i].vars[j], bound[j][0], bound[j][1]);
 				}
 			}
-			
+
 			// 计算每个个体适应度
 			indivs[i].fitness = callFitFunc(indivs[i].vars, opt::make_index_seq<sizeof...(Args)>());
 		}
@@ -557,10 +556,10 @@ namespace opt
 
 		// 寻找子代最差和最优个体
 		std::tie(group_state.worstIndex, group_state.bestIndex) = this->selectPolarIndivs(seq, thread_num);
-		
+
 		// 淘汰子代最差个体, 用父代最优个体取代
 		indivs[group_state.worstIndex] = bestIndivs.back();
-		
+
 		// 如果子代出现更优个体
 		if (indivs[group_state.bestIndex].fitness >= bestIndivs.back().fitness)
 		{
@@ -577,37 +576,43 @@ namespace opt
 	void GAGroup<R(Args...)>::run()
 	{
 		while (true)
-		{	
-			updateRoulette();            // 更新更新轮盘赌刻度线
-
+		{
+			updateRoulette();                 // 更新更新轮盘赌刻度线
 			crossover(0);                     // 交叉
 			switchIndivArray();               // 交换个体数组
 			mutate(0);                        // 变异
-			select(0);                        // 环境选择			
+			select(0);                        // 环境选择
 			updateStopState();                // 更新停止状态
-			
+
 			// 判断是否到达停止条件
 			if (flushStopFlag())
 			{
 				return;
 			}
+
+			// 是否暂停迭代(为保证数据一致性，需在一次完整迭代后pause)
+			{
+				std::unique_lock<std::mutex> lck(thread_sync->mtx);
+				thread_sync->cv.wait(lck, [this]() { return !(this->thread_sync->sleep); });
+			}
 		}
 	}
-	
+
 	// 进化迭代(多线程模式)
 	template<class R, class ...Args>
-	void GAGroup<R(Args...)>::run_multi(const int seq)
+	void GAGroup<R(Args...)>::run_parallel(const int seq)
 	{
 		while (true)
 		{
 			/////////////////////////////// Crossover ///////////////////////////////
+			// 为保证数据一致性，需在一次完整迭代后pause
 			{
 				std::unique_lock<std::mutex> lck(thread_sync->mtx);
 				thread_sync->cv.wait(lck, [this, &seq]() {
-					return !(this->thread_sync->cross_flag[seq]) && this->thread_sync->crossReady;
+					return !(this->thread_sync->cross_flag[seq]) && this->thread_sync->crossReady && !(this->thread_sync->sleep);
 				});
-			}// 离开作用域, gm.thread_state.mtx的unlock()方法自动执行
-			
+			}
+
 			if (group_state.stopFlag == true) { return; }
 
 			crossover(seq);
@@ -718,7 +723,7 @@ namespace opt
 		}
 	}
 
-	// 更新种群停止状态
+	// 更新个体数组指针
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::switchIndivArray()
 	{

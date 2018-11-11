@@ -14,24 +14,23 @@ namespace opt
 		T* tick_mark;                                           // 轮盘刻度线(需保证数值单调递增)
 
 	public:
-		Roulette();                                             // 构造函数 
-		Roulette(const int N);                                  // 构造函数 
+		Roulette();                                             // 构造函数
+		Roulette(const int N);                                  // 构造函数
 		Roulette(const Roulette<T>& other);                     // 拷贝构造
 		Roulette(Roulette<T>&& other);                          // 移动构造
 		~Roulette();                                            // 析构函数
 
 		int roll();                                             // 轮盘随机转动
-		//void setMark(const int INDEX, const T& NUM);          // 重设刻度线的值
 		T& operator[](const int& i);
 	};
 
 	// 构造函数
 	template<class T>
-	Roulette<T>::Roulette() 
+	Roulette<T>::Roulette()
 		:mark_num(0),
 		tick_mark(nullptr)
 	{}
-	
+
 	// 构造函数
 	template<class T>
 	Roulette<T>::Roulette(const int N)
@@ -100,13 +99,6 @@ namespace opt
 			return 0;
 		}
 	}
-
-	//// 重设刻度线的值
-	//template<class T>
-	//inline void Roulette<T>::setMark(const int INDEX, const T& NUM)
-	//{
-	//	tick_mark[INDEX] = NUM;
-	//}
 
 	// 获取轮盘赌刻度线
 	template<class T>
