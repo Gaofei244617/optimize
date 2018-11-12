@@ -6,6 +6,13 @@
 
 namespace opt
 {
+	struct SleepFlag
+	{
+		bool signal;
+		bool result;
+		SleepFlag() :signal(false), result(false) {}
+	};
+
 	// 种群状态标（随着迭代过程可能发生变化）
 	struct GA_GroupState
 	{
@@ -20,8 +27,8 @@ namespace opt
 		bool setMaxGeneFlag;                                                  // 是否设置最大迭代次数
 		bool initFlag;                                                        // 是否初始化种群
 		bool stopFlag;                                                        // 迭代停止标志, true:达到停止条件, false:未达到停止条件
-		bool sleep;
-		short stopCode;                                                       // 迭代停止原因,-1:未停止; 0:最优解收敛于稳定值; 1:达到最大迭代次数; 2:达到最大迭代时间; 3.人为停止迭代
+		SleepFlag sleep;                                                      //
+		short stopCode;                                                       // 迭代停止原因,-1:未开始; 0:最优解收敛于稳定值; 1:达到最大迭代次数; 2:达到最大迭代时间; 3.人为停止迭代
 		unsigned int count;                                                   // 最优解波动连续小于停止误差的次数, 波动值连续5次小于停止误差即停止迭代
 
 		unsigned int nGene;                                                   // 当前种群代数
@@ -42,7 +49,7 @@ namespace opt
 			setMaxGeneFlag(false),
 			initFlag(false),
 			stopFlag(false),
-			sleep(false),
+			sleep(),
 			stopCode(-1),
 			count(0),
 			nGene(0),

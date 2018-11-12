@@ -78,19 +78,18 @@ void out_res(T& a)
 
 int main()
 {
-	auto a = opt::createGAGroup(test_Func2, 500);
+	auto a = opt::createGAGroup(test_Func2, 5000);
 	a.setBoundary({ {0, 25}, {0, 35} });
 	a.setCrossProb(0.95);
 
-	a.setMaxGeneration(3);
+	a.setMaxGeneration(4);
 	//a.setMaxRuntime(Second(0.6));
 
-	a.setThreadNum(2);
-	//a.setThreadNum(1);
+	//a.setThreadNum(4);
+	a.setThreadNum(1);
 
 	// profile
 	DWORD start = GetTickCount();
-	a.initGroup();
 
 	a.start();
 
@@ -101,12 +100,12 @@ int main()
 	}
 
 	a.pause();
-	cout << "pause..." << endl;
+	//cout << "pause..." << endl;
 	a.proceed();
-	cout << "go on..." << endl;
+	//cout << "go on..." << endl;
 
-	//auto b = a.clone();
-	GAGroup<double(double, double)> c(a);
+	auto b = a.clone();
+	GAGroup<double(double, double)> c(b);
 
 	a.wait_result();
 
@@ -119,18 +118,19 @@ int main()
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
 
-	//decltype(a) b(a);
 	std::cout << "a finish" << std::endl;
+	std::cout << std::endl;
 
-	//auto flag = b.start();
-	// cout << "B = " << flag << endl;
-	//b.wait_result();
-	//out_res(b);
+	auto flag = b.start();
+	c.start();
 
-	//c.start();
-	//c.wait_result();
+	//cout << "B = " << flag << endl;
+	b.wait_result();
+	out_res(b);
 
-	//out_res(c);
+	c.wait_result();
+
+	out_res(c);
 
 	system("pause");
 	return 0;

@@ -74,7 +74,6 @@ namespace opt
 		std::vector<Individual> getBestIndivs();                              // 获取历次迭代的最优解
 		int getStopCode();                                                    // 获取Stop Code
 
-		void initGroup();                                                     // 初始化种群个体
 		bool start();                                                         // 开始迭代进化
 		void wait_result();                                                   // 阻塞当前线程,等待优化结果
 		GAGroup<R(Args...)> clone();                                          // 克隆当前状态种群
@@ -83,7 +82,7 @@ namespace opt
 		void proceed();                                                       // 继续迭代
 
 	private:
-
+		void initGroup();                                                     // 初始化种群个体
 		void crossover(const int seq);                                        // 交叉(单线程模式)
 		void mutate(const int seq);                                           // 变异(单线程模式)
 		void select(const int seq);                                           // 选择(单线程模式)
@@ -152,13 +151,6 @@ namespace opt
 	{
 		other.pause();
 
-		// 等待种群暂停
-		// 此处可能死锁！！！！！！！！！！！！！！！！！
-		{
-			std::unique_lock<std::mutex> lck(other.thread_sync->mtx);
-			other.thread_sync->cv.wait(lck, [&other]() { return other.group_state.sleep; });
-		}
-
 		// 成员拷贝
 		// 分配个体内存，但不构造个体(Indivadual无默认构造)
 		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
@@ -183,8 +175,9 @@ namespace opt
 		this->group_state = other.group_state;
 		this->thread_sync.reset(new GAThreadSync<R, Args...>(*(other.thread_sync), this));
 
-		this->thread_sync->sleep = false;
-		this->group_state.sleep = false;
+		this->group_state.sleep.signal = false;
+		this->group_state.sleep.result = false;
+		this->group_state.stopCode = -1;   // 未开始迭代
 
 		other.proceed();
 	}
@@ -380,10 +373,14 @@ namespace opt
 	template<class R, class... Args>
 	bool GAGroup<R(Args...)>::start()
 	{
+		// 初始化种群
+		initGroup();
+
 		// 若种群满足进化条件
 		if (group_state.runable())
 		{
 			group_state.startTime = std::chrono::steady_clock::now();
+			group_state.stopCode = 0; // 正在迭代
 
 			if (thread_sync->threadNum > 1) // 多线程模式
 			{
@@ -400,6 +397,115 @@ namespace opt
 			return true;
 		}
 		return false;
+	}
+
+	// 进化迭代(单线程模式)
+	template<class R, class... Args>
+	void GAGroup<R(Args...)>::run()
+	{
+		while (true)
+		{
+			// 是否暂停迭代(为保证数据一致性，需在一次完整迭代后pause)
+			{
+				std::unique_lock<std::mutex> lck(thread_sync->mtx);
+				thread_sync->cv.wait(lck, [this]() { return !(this->group_state.sleep.signal); });
+			}
+
+			updateRoulette();                 // 更新更新轮盘赌刻度线
+			crossover(0);                     // 交叉
+			switchIndivArray();               // 交换个体数组
+			mutate(0);                        // 变异
+			select(0);                        // 环境选择
+			updateStopState();                // 更新停止状态
+
+			// 判断是否到达停止条件
+			if (flushStopFlag())
+			{
+				return;
+			}
+
+			if (group_state.sleep.signal == true)
+			{
+				group_state.sleep.result = true;
+				thread_sync->cv.notify_all();
+			}
+		}
+	}
+
+	// 进化迭代(多线程模式)
+	template<class R, class ...Args>
+	void GAGroup<R(Args...)>::run_parallel(const int seq)
+	{
+		while (true)
+		{
+			/////////////////////////////// Crossover ///////////////////////////////
+			// 为保证数据一致性，需在一次完整迭代后pause
+			{
+				std::unique_lock<std::mutex> lck(thread_sync->mtx);
+				thread_sync->cv.wait(lck, [this, &seq]() {
+					return !(this->thread_sync->cross_flag[seq]) && this->thread_sync->crossReady && !(this->group_state.sleep.signal);
+				});
+			}
+
+			if (group_state.stopFlag == true) { return; }
+
+			crossover(seq);
+
+			// 线程同步
+			thread_sync->mtx.lock();
+			thread_sync->cross_sync(seq);
+			thread_sync->mtx.unlock();
+			thread_sync->cv.notify_all();
+
+			/////////////////////////////// Mutate ///////////////////////////////
+			{
+				std::unique_lock<std::mutex> lck(thread_sync->mtx);
+				thread_sync->cv.wait(lck, [this, &seq]() {
+					return !(this->thread_sync->mut_flag[seq]) && this->thread_sync->mutReady;
+				});
+			}
+
+			mutate(seq);
+
+			// 线程同步
+			thread_sync->mtx.lock();
+			thread_sync->mutate_sync(seq);
+			thread_sync->mtx.unlock();
+			thread_sync->cv.notify_all();
+
+			/////////////////////////////// Select ///////////////////////////////
+			{
+				std::unique_lock<std::mutex> lck(thread_sync->mtx);
+				thread_sync->cv.wait(lck, [this, &seq]() {
+					return !(this->thread_sync->sel_flag[seq]) && this->thread_sync->selectReady;
+				});
+			}
+
+			int worst_temp = 0;
+			int best_temp = 0;
+
+			int thread_num = thread_sync->threadNum;
+
+			// 寻找子代最差和最优个体
+			std::tie(worst_temp, best_temp) = this->selectPolarIndivs(seq, thread_num);
+
+			// 线程同步
+			thread_sync->mtx.lock();
+
+			// 更新最优与最差个体位置;
+			if (indivs[worst_temp].fitness < indivs[group_state.worstIndex].fitness)
+			{
+				group_state.worstIndex = worst_temp;
+			}
+			if (indivs[best_temp].fitness > indivs[group_state.bestIndex].fitness)
+			{
+				group_state.bestIndex = best_temp;
+			}
+
+			thread_sync->select_sync(seq);
+			thread_sync->mtx.unlock();
+			thread_sync->cv.notify_all();
+		}
 	}
 
 	// 阻塞当前线程, 等待计算结果
@@ -430,15 +536,29 @@ namespace opt
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::pause()
 	{
-		this->thread_sync->sleep = true;
+		// 如果种群未处于迭代运行状态
+		if (group_state.stopCode != 0)
+		{
+			return;
+		}
+
+		this->group_state.sleep.signal = true;
+		std::unique_lock<std::mutex> lck(thread_sync->mtx);
+		thread_sync->cv.wait(lck, [this]() {return this->group_state.sleep.result; });
 	}
 
 	// 继续迭代
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::proceed()
 	{
-		this->thread_sync->sleep = false;
-		this->group_state.sleep = false;
+		// 如果种群未处于迭代运行状态
+		if (group_state.stopCode != 0)
+		{
+			return;
+		}
+
+		this->group_state.sleep.signal = false;
+		this->group_state.sleep.result = false;
 		this->thread_sync->cv.notify_all();
 	}
 
@@ -450,6 +570,12 @@ namespace opt
 		// 初始化前需要保证已设置基因变量区间
 		if (group_state.setBoundFlag)
 		{
+			// 如果种群已被初始化则不再重复初始化
+			if (group_state.initFlag == true)
+			{
+				return;
+			}
+
 			// 1.初始化每一个个体
 			for (int i = 0; i < groupSize; i++)
 			{
@@ -580,135 +706,6 @@ namespace opt
 		}
 	}
 
-	// 进化迭代(单线程模式)
-	template<class R, class... Args>
-	void GAGroup<R(Args...)>::run()
-	{
-		while (true)
-		{
-			updateRoulette();                 // 更新更新轮盘赌刻度线
-			crossover(0);                     // 交叉
-			switchIndivArray();               // 交换个体数组
-			mutate(0);                        // 变异
-			select(0);                        // 环境选择
-			updateStopState();                // 更新停止状态
-
-			// 判断是否到达停止条件
-			if (flushStopFlag())
-			{
-				return;
-			}
-
-			if (thread_sync->sleep == true)
-			{
-				group_state.sleep = true;
-			}
-
-			// 是否暂停迭代(为保证数据一致性，需在一次完整迭代后pause)
-			{
-				std::unique_lock<std::mutex> lck(thread_sync->mtx);
-				thread_sync->cv.wait(lck, [this]() { return !(this->thread_sync->sleep); });
-			}
-		}
-	}
-
-	// 进化迭代(多线程模式)
-	template<class R, class ...Args>
-	void GAGroup<R(Args...)>::run_parallel(const int seq)
-	{
-		while (true)
-		{
-			/////////////////////////////// Crossover ///////////////////////////////
-			// 为保证数据一致性，需在一次完整迭代后pause
-			{
-				std::cout << "Befor cross" << std::endl;
-
-				std::unique_lock<std::mutex> lck(thread_sync->mtx);
-				//&& !(this->thread_sync->sleep)
-				//auto x = !(this->thread_sync->cross_flag[seq]) && this->thread_sync->crossReady;
-				auto x = this->thread_sync->sleep;
-				std::cout << x << std::endl;
-
-				thread_sync->cv.wait(lck, [this, &seq]() {
-					return !(this->thread_sync->cross_flag[seq]) && this->thread_sync->crossReady && !(this->thread_sync->sleep);
-				});
-			}
-
-			if (group_state.stopFlag == true) { return; }
-
-			crossover(seq);
-
-			// 线程同步
-			thread_sync->mtx.lock();
-			thread_sync->cross_sync(seq);
-			thread_sync->mtx.unlock();
-			thread_sync->cv.notify_all();
-
-			/////////////////////////////// Mutate ///////////////////////////////
-			{
-				std::cout << "Befor mutate" << std::endl;
-
-				std::unique_lock<std::mutex> lck(thread_sync->mtx);
-
-				auto x = !(this->thread_sync->mut_flag[seq]) && this->thread_sync->mutReady;
-				//std::cout << x << std::endl;
-
-				thread_sync->cv.wait(lck, [this, &seq]() {
-					return !(this->thread_sync->mut_flag[seq]) && this->thread_sync->mutReady;
-				});
-			}
-
-			mutate(seq);
-
-			// 线程同步
-			thread_sync->mtx.lock();
-			thread_sync->mutate_sync(seq);
-			thread_sync->mtx.unlock();
-			thread_sync->cv.notify_all();
-
-			/////////////////////////////// Select ///////////////////////////////
-			{
-				std::cout << "Befor select" << std::endl;
-
-				std::unique_lock<std::mutex> lck(thread_sync->mtx);
-
-				auto x = !(this->thread_sync->sel_flag[seq]) && this->thread_sync->selectReady;
-				//std::cout << x << std::endl;
-
-				thread_sync->cv.wait(lck, [this, &seq]() {
-					return !(this->thread_sync->sel_flag[seq]) && this->thread_sync->selectReady;
-				});
-			}
-
-			int worst_temp = 0;
-			int best_temp = 0;
-
-			int thread_num = thread_sync->threadNum;
-
-			// 寻找子代最差和最优个体
-			std::tie(worst_temp, best_temp) = this->selectPolarIndivs(seq, thread_num);
-
-			// 线程同步
-			thread_sync->mtx.lock();
-
-			// 更新最优与最差个体位置;
-			if (indivs[worst_temp].fitness < indivs[group_state.worstIndex].fitness)
-			{
-				group_state.worstIndex = worst_temp;
-			}
-			if (indivs[best_temp].fitness > indivs[group_state.bestIndex].fitness)
-			{
-				group_state.bestIndex = best_temp;
-			}
-
-			thread_sync->select_sync(seq);
-			thread_sync->mtx.unlock();
-			thread_sync->cv.notify_all();
-
-			if (group_state.stopFlag == true) { return; }
-		}
-	}
-
 	// 更新轮盘赌刻度线
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::updateRoulette()
@@ -798,13 +795,7 @@ namespace opt
 	template<class R, class... Args>
 	bool GAGroup<R(Args...)>::flushStopFlag()
 	{
-		// Stop Code : -1-未停止; 0-最优解收敛于稳定值; 1-达到最大迭代次数; 2-达到最大迭代时间; 3-人为停止迭代
-
-		// 是否连续5次最优解的波动小于停止误差
-		if (group_state.setStopTolFlag && group_state.count == group_state.converCount)
-		{
-			group_state.stopCode = 0;
-		}
+		// Stop Code : -1-未开始迭代; 0-正在迭代; 1-达到最大迭代次数; 2-达到最大迭代时间; 3-最优解收敛于稳定值; 4-人为停止迭代
 
 		// 是否达到最大迭代次数
 		if (group_state.setMaxGeneFlag && group_state.nGene >= group_state.maxGene)
@@ -819,8 +810,14 @@ namespace opt
 			group_state.stopCode = 2;
 		}
 
+		// 是否连续5次最优解的波动小于停止误差
+		if (group_state.setStopTolFlag && group_state.count == group_state.converCount)
+		{
+			group_state.stopCode = 3;
+		}
+
 		// 根据stop code判断种群是否停止迭代
-		if (group_state.stopCode != -1)
+		if (group_state.stopCode != -1 && group_state.stopCode != 0)
 		{
 			group_state.stopFlag = true;
 		}
