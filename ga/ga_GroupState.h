@@ -25,6 +25,7 @@ namespace opt
 		bool setRuntimeFlag;                                                  // 是否设置最大运行时间
 		bool setStopTolFlag;                                                  // 是否设置停止误差
 		bool setMaxGeneFlag;                                                  // 是否设置最大迭代次数
+
 		bool initFlag;                                                        // 是否初始化种群
 		bool stopFlag;                                                        // 迭代停止标志, true:达到停止条件, false:未达到停止条件
 		SleepFlag sleep;                                                      //

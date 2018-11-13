@@ -12,7 +12,10 @@ namespace opt
 
 		Individual(const int n);                           // 构造函数
 		Individual(const Individual& other);               // 拷贝构造
-		Individual& operator=(const Individual& other);    // 赋值构造
+		Individual(Individual&& other);                    // 拷贝构造
+		Individual& operator=(const Individual& other);    // 赋值函数
+		Individual& operator=(Individual&& other);         // 移动赋值
+
 		~Individual();                                     // 析构
 	};
 }

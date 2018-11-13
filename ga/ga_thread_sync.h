@@ -24,7 +24,6 @@ namespace opt
 		bool crossReady;                                  // 交叉操作标志
 		bool mutReady;                                    // 变异操作标志
 		bool selectReady;                                 // 选择操作标志
-		//bool sleep;
 		int threadNum;                                    // 并行计算使用的线程数
 		bool_array cross_flag;                            // 并行计算: 交叉线程状态标志
 		bool_array mut_flag;                              // 并行计算: 变异线程状态标志
@@ -38,7 +37,6 @@ namespace opt
 			:crossReady(false),
 			mutReady(false),
 			selectReady(false),
-			//sleep(false),
 			threadNum(1),
 			cross_flag(threadNum),
 			mut_flag(threadNum),
@@ -51,7 +49,6 @@ namespace opt
 			:crossReady(other.crossReady),
 			mutReady(other.mutReady),
 			selectReady(other.selectReady),
-			//sleep(other.sleep),
 			threadNum(other.threadNum),
 			cross_flag(other.cross_flag),
 			mut_flag(other.mut_flag),

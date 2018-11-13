@@ -53,8 +53,10 @@ namespace opt
 
 	public:
 		GAGroup(R(*f)(Args...), const int size = 1000);                       // 构造函数，构造一个种群，需提供适应度函数及种群数量
-		GAGroup(GAGroup<R(Args...)>& other);                            // 拷贝构造
+		GAGroup(GAGroup<R(Args...)>& other);                                  // 拷贝构造
 		GAGroup(GAGroup<R(Args...)>&& other);                                 // 移动构造
+		GAGroup<R(Args...)>& operator=(const GAGroup<R(Args...)>& other) = delete;
+		GAGroup<R(Args...)>& operator=(GAGroup<R(Args...)>&& other) = delete;
 		~GAGroup();
 
 		void setName(const std::string& str);                                 // 设置种群名称
@@ -80,6 +82,7 @@ namespace opt
 
 		void pause();                                                         // 停止进化(为保证数据一致性，需在一次完整迭代后pause)
 		void proceed();                                                       // 继续迭代
+		void kill();
 
 	private:
 		void initGroup();                                                     // 初始化种群个体
@@ -96,7 +99,7 @@ namespace opt
 
 		std::pair<int, int> selectPolarIndivs(const int seq, const int interval);   // 寻找最差和最好的个体位置,返回<worst, best>
 		template<std::size_t... I>
-		R callFitFunc(double* args, const opt::index_seq<I...>&);             // 调用适应度函数
+		R callFitFunc(double* args, const opt::index_seq<I...>&);               // 调用适应度函数
 		bool flushStopFlag();                                                   // 判断是否结束迭代
 	};
 
@@ -171,13 +174,20 @@ namespace opt
 			bound[i][1] = (other.bound)[i][1];
 		}
 
-		this->bestIndivs = other.bestIndivs;
+		// 重设group_state
 		this->group_state = other.group_state;
-		this->thread_sync.reset(new GAThreadSync<R, Args...>(*(other.thread_sync), this));
+		this->group_state.initFlag = true;
+		this->group_state.stopFlag = false;
+		this->group_state.sleep = SleepFlag();
+		this->group_state.stopCode = -1;
+		this->group_state.count = 0;
+		this->group_state.nGene = 0;
+		this->group_state.worstIndex = 0;
+		this->group_state.bestIndex = 0;
 
-		this->group_state.sleep.signal = false;
-		this->group_state.sleep.result = false;
-		this->group_state.stopCode = -1;   // 未开始迭代
+		bestIndivs.push_back(other.bestIndivs.back());
+
+		this->thread_sync.reset(new GAThreadSync<R, Args...>(*(other.thread_sync), this));
 
 		other.proceed();
 	}
@@ -192,16 +202,34 @@ namespace opt
 		tempIndivs(other.tempIndivs),
 		fitFunc(other.fitFunc),
 		bound(other.bound),
-		roulette(std::move(other.roulette)),
+		roulette(),
 		mutateProb(other.mutateProb),
 		crossProb(other.crossProb),
-		bestIndivs(std::move(other.bestIndivs)),
+		bestIndivs(),
 		group_state(other.group_state),
 		thread_sync(nullptr)
 	{
+		other.kill();        // 终止种群迭代
+
 		other.indivs = nullptr;
 		other.tempIndivs = nullptr;
 		other.bound = nullptr;
+		roulette = std::move(other.roulette);
+		bestIndivs = std::move(other.bestIndivs);
+
+		// 重设group_state
+		this->group_state = other.group_state;
+		this->group_state.initFlag = true;
+		this->group_state.stopFlag = false;
+		this->group_state.sleep = SleepFlag();
+		this->group_state.stopCode = -1;
+		this->group_state.count = 0;
+		this->group_state.nGene = 0;
+		this->group_state.worstIndex = 0;
+		this->group_state.bestIndex = 0;
+
+		bestIndivs.push_back(other.bestIndivs.back());
+
 		thread_sync.reset(new GAThreadSync<R, Args...>(*(other.thread_sync), this));
 	}
 

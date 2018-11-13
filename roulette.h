@@ -18,6 +18,8 @@ namespace opt
 		Roulette(const int N);                                  // 构造函数
 		Roulette(const Roulette<T>& other);                     // 拷贝构造
 		Roulette(Roulette<T>&& other);                          // 移动构造
+		Roulette<T>& operator=(const Roulette<T>& other);       // 赋值函数
+		Roulette<T>& operator=(Roulette<T>&& other);            // 移动赋值
 		~Roulette();                                            // 析构函数
 
 		int roll();                                             // 轮盘随机转动
@@ -57,6 +59,35 @@ namespace opt
 		tick_mark(other.tick_mark)
 	{
 		other.tick_mark = nullptr;
+	}
+
+	// 赋值函数
+	template<class T>
+	Roulette<T>& Roulette<T>::operator=(const Roulette<T>& other)
+	{
+		if (this != &other)
+		{
+			mark_num = other.mark_num;
+			tick_mark = new T[mark_num]();
+			for (int i = 0; i < mark_num; i++)
+			{
+				tick_mark[i] = other.tick_mark[i];
+			}
+		}
+		return *this;
+	}
+
+	// 移动赋值
+	template<class T>
+	Roulette<T>& Roulette<T>::operator=(Roulette<T>&& other)
+	{
+		if (this != &other)
+		{
+			mark_num = other.mark_num;
+			tick_mark = other.tick_mark;
+			other.tick_mark = nullptr;
+		}
+		return *this;
 	}
 
 	// 析构函数

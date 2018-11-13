@@ -19,6 +19,12 @@ namespace opt
 		}
 	}
 
+	// 移动构造
+	Individual::Individual(Individual&& other) : nVars(other.nVars), vars(other.vars), fitness(other.fitness)
+	{
+		other.vars = nullptr;
+	}
+
 	// 赋值构造
 	Individual& Individual::operator=(const Individual& other)
 	{
@@ -36,6 +42,24 @@ namespace opt
 			{
 				vars[i] = (other.vars[i]);
 			}
+			fitness = other.fitness;
+		}
+		return *this;
+	}
+
+	// 移动赋值
+	Individual& Individual::operator=(Individual&& other)
+	{
+		// 避免自赋值
+		if (this != &other)
+		{
+			// 若变量个数不相等，抛出异常
+			if (nVars != other.nVars)
+			{
+				throw std::string("Two individuals do not match.");
+			}
+			vars = other.vars;
+			other.vars = nullptr;
 			fitness = other.fitness;
 		}
 		return *this;
