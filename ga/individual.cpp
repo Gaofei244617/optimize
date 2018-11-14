@@ -9,6 +9,16 @@ namespace opt
 		vars = new double[n]();
 	}
 
+	// 构造函数
+	Individual::Individual(const std::initializer_list<double>& list) : nVars(list.size()), fitness(0)
+	{
+		vars = new double[nVars]();
+		for (int i = 0; i < nVars; i++)
+		{
+			vars[i] = *(list.begin() + i);
+		}
+	}
+
 	// 复制构造
 	Individual::Individual(const Individual& other) : nVars(other.nVars), fitness(other.fitness)
 	{

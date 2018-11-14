@@ -528,13 +528,19 @@ namespace opt
 	{
 		if (thread_sync->threadNum == 1) // 单线程模式
 		{
-			single_thread.join();
+			if (single_thread.joinable())
+			{
+				single_thread.join();
+			}
 		}
 		else  // 多线程模式
 		{
 			for (int i = 0; i < thread_sync->threadNum; i++)
 			{
-				vec_run[i].join();
+				if (vec_run[i].joinable())
+				{
+					vec_run[i].join();
+				}
 			}
 		}
 	}
@@ -574,6 +580,20 @@ namespace opt
 		this->group_state.sleep.signal = false;
 		this->group_state.sleep.result = false;
 		this->thread_sync->cv.notify_all();
+	}
+
+	// 停止迭代
+	template<class R, class... Args>
+	void GAGroup<R(Args...)>::kill()
+	{
+		// 如果种群未处于迭代运行状态
+		if (group_state.stopCode != 0)
+		{
+			return;
+		}
+
+		this->group_state.stopCode = 4;
+		this->wait_result();
 	}
 
 	/******************************************* Private Functions *****************************************************/

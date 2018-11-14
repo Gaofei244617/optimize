@@ -47,17 +47,20 @@ void out_res(T& a)
 {
 	//////////////////////////////// 输出计算结果 //////////////////////////////////////////////////////////
 	// 输出停止条件
-	// Stop Code : -1-未停止; 0-最优解收敛于稳定值; 1-达到最大迭代次数; 2-达到最大迭代时间; 3-人为停止迭代
+	// Stop Code : -1-未开始迭代; 0-正在迭代; 1-达到最大迭代次数; 2-达到最大迭代时间; 3-最优解收敛于稳定值; 4-人为停止迭代
 	switch (a.getStopCode())
 	{
-	case 0:
-		std::cout << "Stop condition: reach the convergency." << std::endl;
-		break;
 	case 1:
 		std::cout << "Stop condition: reach the max generation." << std::endl;
 		break;
 	case 2:
 		std::cout << "Stop condition: reach the max time." << std::endl;
+		break;
+	case 3:
+		std::cout << "Stop condition: reach the convergency." << std::endl;
+		break;
+	case 4:
+		std::cout << "Stop condition: killed." << std::endl;
 		break;
 	}
 	cout << endl;
@@ -78,15 +81,15 @@ void out_res(T& a)
 
 int main()
 {
-	auto a = opt::createGAGroup(test_Func2, 5000);
+	auto a = opt::createGAGroup(test_Func2, 500000);
 	a.setBoundary({ {0, 25}, {0, 35} });
 	a.setCrossProb(0.95);
 
-	a.setMaxGeneration(4);
+	a.setMaxGeneration(5);
 	//a.setMaxRuntime(Second(0.6));
 
-	//a.setThreadNum(4);
-	a.setThreadNum(1);
+	a.setThreadNum(4);
+	//a.setThreadNum(1);
 
 	// profile
 	DWORD start = GetTickCount();
@@ -99,13 +102,15 @@ int main()
 		k = k + i;
 	}
 
-	a.pause();
-	cout << "pause..." << endl;
-	a.proceed();
-	cout << "go on..." << endl;
+	//a.pause();
+	//cout << "pause..." << endl;
+	//a.proceed();
+	//cout << "go on..." << endl;
 
 	auto b = a.clone();
 	GAGroup<double(double, double)> c(b);
+
+	a.kill();
 
 	a.wait_result();
 

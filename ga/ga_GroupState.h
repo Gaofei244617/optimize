@@ -2,6 +2,7 @@
 #define _GA_STATE_H_
 
 #include <chrono>
+#include <atomic>
 #include "opt_time.h"
 
 namespace opt
@@ -29,7 +30,7 @@ namespace opt
 		bool initFlag;                                                        // 是否初始化种群
 		bool stopFlag;                                                        // 迭代停止标志, true:达到停止条件, false:未达到停止条件
 		SleepFlag sleep;                                                      //
-		short stopCode;                                                       // 迭代停止原因,-1:未开始; 0:最优解收敛于稳定值; 1:达到最大迭代次数; 2:达到最大迭代时间; 3.人为停止迭代
+		std::atomic<short> stopCode;                                          // 迭代停止原因,-1-未开始迭代; 0-正在迭代; 1-达到最大迭代次数; 2-达到最大迭代时间; 3-最优解收敛于稳定值; 4-人为停止迭代
 		unsigned int count;                                                   // 最优解波动连续小于停止误差的次数, 波动值连续5次小于停止误差即停止迭代
 
 		unsigned int nGene;                                                   // 当前种群代数
@@ -71,7 +72,7 @@ namespace opt
 			initFlag(other.initFlag),
 			stopFlag(other.stopFlag),
 			sleep(other.sleep),
-			stopCode(other.stopCode),
+			stopCode(other.stopCode.load()),
 			count(other.count),
 			nGene(other.nGene),
 			worstIndex(other.worstIndex),
@@ -94,7 +95,7 @@ namespace opt
 				initFlag = other.initFlag;
 				stopFlag = other.stopFlag;
 				sleep = other.sleep;
-				stopCode = other.stopCode;
+				stopCode = other.stopCode.load();
 				count = other.count;
 				nGene = other.nGene;
 				worstIndex = other.worstIndex;
