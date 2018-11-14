@@ -145,21 +145,19 @@ namespace opt
 		tempIndivs(nullptr),
 		fitFunc(other.fitFunc),
 		bound(nullptr),
-		roulette(other.roulette),
+		roulette(),
 		mutateProb(other.mutateProb),
-		bestIndivs(),
 		crossProb(other.crossProb),
+		bestIndivs(),
 		group_state(),
 		thread_sync(nullptr)
 	{
 		other.pause();
 
 		// 成员拷贝
-		// 分配个体内存，但不构造个体(Indivadual无默认构造)
 		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
 		this->tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
 
-		// 在已分配的内存上构造个体对象
 		for (int i = 0; i < groupSize; i++)
 		{
 			new(indivs + i) Individual(*(other.indivs + i));
@@ -174,18 +172,13 @@ namespace opt
 			bound[i][1] = (other.bound)[i][1];
 		}
 
-		// 重设group_state
-		this->group_state = other.group_state;
-		this->group_state.initFlag = true;
-		this->group_state.stopFlag = false;
-		this->group_state.sleep = SleepFlag();
-		this->group_state.stopCode = -1;
-		this->group_state.count = 0;
-		this->group_state.nGene = 0;
-		this->group_state.worstIndex = 0;
-		this->group_state.bestIndex = 0;
+		this->roulette = other.roulette;
+		this->bestIndivs = other.bestIndivs;
 
-		bestIndivs.push_back(other.bestIndivs.back());
+		this->group_state = other.group_state;
+		this->group_state.sleep.signal = false;
+		this->group_state.sleep.result = false;
+		this->group_state.stopCode = -1;   // 未开始迭代
 
 		this->thread_sync.reset(new GAThreadSync<R, Args...>(*(other.thread_sync), this));
 
@@ -214,21 +207,14 @@ namespace opt
 		other.indivs = nullptr;
 		other.tempIndivs = nullptr;
 		other.bound = nullptr;
-		roulette = std::move(other.roulette);
-		bestIndivs = std::move(other.bestIndivs);
 
-		// 重设group_state
+		this->roulette = std::move(other.roulette);
+		this->bestIndivs = std::move(other.bestIndivs);
+
 		this->group_state = other.group_state;
-		this->group_state.initFlag = true;
-		this->group_state.stopFlag = false;
-		this->group_state.sleep = SleepFlag();
+		this->group_state.sleep.signal = false;
+		this->group_state.sleep.result = false;
 		this->group_state.stopCode = -1;
-		this->group_state.count = 0;
-		this->group_state.nGene = 0;
-		this->group_state.worstIndex = 0;
-		this->group_state.bestIndex = 0;
-
-		bestIndivs.push_back(other.bestIndivs.back());
 
 		thread_sync.reset(new GAThreadSync<R, Args...>(*(other.thread_sync), this));
 	}

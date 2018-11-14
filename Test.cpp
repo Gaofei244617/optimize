@@ -100,9 +100,9 @@ int main()
 	}
 
 	a.pause();
-	//cout << "pause..." << endl;
+	cout << "pause..." << endl;
 	a.proceed();
-	//cout << "go on..." << endl;
+	cout << "go on..." << endl;
 
 	auto b = a.clone();
 	GAGroup<double(double, double)> c(b);
