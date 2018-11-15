@@ -20,7 +20,7 @@ namespace opt
 		long double stopTol;                                                  // 停止迭代误差
 		unsigned int maxGene;                                                 // 最大迭代次数
 		unsigned int converCount;                                             // 停止迭代的收敛次数
-		Second maxRuntime;                                                    // 最大迭代时间
+		Second maxRuntime;                                                    // 最大迭代时间(秒)
 
 		bool setBoundFlag;                                                    // 是否设置变量区间
 		bool setRuntimeFlag;                                                  // 是否设置最大运行时间
@@ -36,6 +36,7 @@ namespace opt
 		unsigned int nGene;                                                   // 当前种群代数
 		std::chrono::time_point<std::chrono::steady_clock> startTime;         // 开始迭代的时间点
 		std::chrono::time_point<std::chrono::steady_clock> nowTime;           // 当前迭代的时间点
+		double time;                                                          // 种群迭代时间：秒
 		int worstIndex;                                                       // 适应度最差的个体位置
 		int bestIndex;                                                        // 适应度最好的个体位置
 
@@ -55,6 +56,7 @@ namespace opt
 			stopCode(-1),
 			count(0),
 			nGene(0),
+			time(0),
 			worstIndex(0),
 			bestIndex(0)
 		{}
@@ -75,6 +77,7 @@ namespace opt
 			stopCode(other.stopCode.load()),
 			count(other.count),
 			nGene(other.nGene),
+			time(other.time),
 			worstIndex(other.worstIndex),
 			bestIndex(other.bestIndex)
 		{}
@@ -98,6 +101,7 @@ namespace opt
 				stopCode = other.stopCode.load();
 				count = other.count;
 				nGene = other.nGene;
+				time = other.time;
 				worstIndex = other.worstIndex;
 				bestIndex = other.bestIndex;
 			}

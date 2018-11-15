@@ -40,6 +40,13 @@ double test_Func2(double x, double y)
 {
 	return -0.2*((x - 13)*(x - 13) + (y - 17)*(y - 17)) + 21;
 }
+
+void monitor(const GA_Info& indiv, void* dat)
+{
+	cout << "***********************************" << endl;
+	cout << "NGen: " << indiv.NGen << endl;
+	cout << "Time: " << indiv.time << endl;
+}
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<class T>
@@ -85,32 +92,28 @@ int main()
 	a.setBoundary({ {0, 25}, {0, 35} });
 	a.setCrossProb(0.95);
 
-	a.setMaxGeneration(5);
+	a.setMaxGeneration(6);
 	//a.setMaxRuntime(Second(0.6));
 
 	a.setThreadNum(4);
 	//a.setThreadNum(1);
+
+	a.setMonitor(monitor, nullptr);
 
 	// profile
 	DWORD start = GetTickCount();
 
 	a.start();
 
-	int k = 1;
-	for (int i = 0; i < 1000; i++)
-	{
-		k = k + i;
-	}
-
 	//a.pause();
 	//cout << "pause..." << endl;
 	//a.proceed();
 	//cout << "go on..." << endl;
 
-	auto b = a.clone();
-	GAGroup<double(double, double)> c(b);
+	//auto b = a.clone();
+	//GAGroup<double(double, double)> c(b);
 
-	a.kill();
+	//a.kill();
 
 	a.wait_result();
 
@@ -123,19 +126,18 @@ int main()
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
 
-	std::cout << "a finish" << std::endl;
 	std::cout << std::endl;
 
-	auto flag = b.start();
-	c.start();
+	//auto flag = b.start();
+	//c.start();
 
 	//cout << "B = " << flag << endl;
-	b.wait_result();
-	out_res(b);
+	//b.wait_result();
+	//out_res(b);
 
-	c.wait_result();
+	//c.wait_result();
 
-	out_res(c);
+	//out_res(c);
 
 	system("pause");
 	return 0;

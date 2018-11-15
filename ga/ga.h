@@ -17,6 +17,7 @@
 #include "mutate_factor.h"
 #include "ga_thread_sync.h"
 #include "index_seq.h"
+#include "ga_info.h"
 
 /////////////////////////////////////////////////
 #include <iostream>
@@ -39,6 +40,8 @@ namespace opt
 		Individual* indivs;                                                   // 种群个体, 指向groupSize个个体数组(最后一个存放最优个体)
 		Individual* tempIndivs;                                               // 子代个体缓存区
 		R(*fitFunc)(Args...);                                                 // 适应度函数指针
+		void(*func)(const GA_Info&, void*);                                   // 外部监听函数
+		void* user_data;                                                      //
 		double(*bound)[2];                                                    // 每个变量(基因)的区间, 以数组指针表示
 		Roulette<double> roulette;                                            //
 		double mutateProb;                                                    // 个体变异概率,默认p = 0.1
@@ -68,6 +71,7 @@ namespace opt
 		void setMutateProb(const double p);                                   // 设置基因变异概率
 		void setCrossProb(const double p);                                    // 设置交叉概率
 		void setThreadNum(const int NUM);                                     // 设置并行计算的线程数，默认为1
+		void setMonitor(void(*f)(const GA_Info&, void*), void* dat);           // 设置外部监听函数
 
 		const std::string getName()const;                                     // 获取种群名称
 		int getNVars()const;                                                  // 获取种群变量个数
@@ -76,16 +80,15 @@ namespace opt
 		std::vector<Individual> getBestIndivs();                              // 获取历次迭代的最优解
 		int getStopCode();                                                    // 获取Stop Code
 
+		void initGroup(const std::vector<Individual>& indivs = std::vector<Individual>());    // 初始化种群个体
 		bool start();                                                         // 开始迭代进化
-		void wait_result();                                                   // 阻塞当前线程,等待优化结果
-		GAGroup<R(Args...)> clone();                                          // 克隆当前状态种群
-
-		void pause();                                                         // 停止进化(为保证数据一致性，需在一次完整迭代后pause)
+		void pause();                                                         // 暂停(为保证数据一致性，需在一次完整迭代后pause)
 		void proceed();                                                       // 继续迭代
-		void kill();
+		void kill();                                                          // 结束迭代
+		void wait_result();                                                   // 阻塞当前线程,等待优化结果
+		GAGroup<R(Args...)> clone();                                          // 克隆当前种群
 
 	private:
-		void initGroup();                                                     // 初始化种群个体
 		void crossover(const int seq);                                        // 交叉(单线程模式)
 		void mutate(const int seq);                                           // 变异(单线程模式)
 		void select(const int seq);                                           // 选择(单线程模式)
@@ -113,6 +116,8 @@ namespace opt
 		indivs(nullptr),
 		tempIndivs(nullptr),
 		fitFunc(f),
+		func(nullptr),
+		user_data(nullptr),
 		bound(nullptr),
 		roulette(groupSize + 1),
 		mutateProb(0.1),
@@ -144,6 +149,8 @@ namespace opt
 		indivs(nullptr),
 		tempIndivs(nullptr),
 		fitFunc(other.fitFunc),
+		func(other.func),
+		user_data(other.user_data),
 		bound(nullptr),
 		roulette(),
 		mutateProb(other.mutateProb),
@@ -194,6 +201,8 @@ namespace opt
 		indivs(other.indivs),
 		tempIndivs(other.tempIndivs),
 		fitFunc(other.fitFunc),
+		func(other.func),
+		user_data(other.user_data),
 		bound(other.bound),
 		roulette(),
 		mutateProb(other.mutateProb),
@@ -337,6 +346,15 @@ namespace opt
 			throw std::string("Thread number error.");
 		}
 	}
+
+	// 设置外部监听函数
+	template<class R, class... Args>
+	void GAGroup<R(Args...)>::setMonitor(void(*f)(const GA_Info&, void*), void* dat)
+	{
+		this->func = f;
+		this->user_data = dat;
+	}
+
 	/*****************************************************************************************************************/
 
 	/**************************************Getter*********************************************************************/
@@ -388,7 +406,11 @@ namespace opt
 	bool GAGroup<R(Args...)>::start()
 	{
 		// 初始化种群
-		initGroup();
+		// 如果种群已被初始化则不再重复初始化
+		if (group_state.initFlag == false)
+		{
+			initGroup();
+		}
 
 		// 若种群满足进化条件
 		if (group_state.runable())
@@ -431,6 +453,13 @@ namespace opt
 			mutate(0);                        // 变异
 			select(0);                        // 环境选择
 			updateStopState();                // 更新停止状态
+
+			// 调用外部监听函数
+			if (func != nullptr)
+			{
+				GA_Info ga_info(group_state.time, group_state.nGene, bestIndivs.back());
+				func(ga_info, user_data);
+			}
 
 			// 判断是否到达停止条件
 			if (flushStopFlag())
@@ -552,7 +581,7 @@ namespace opt
 		return GAGroup<R(Args...)>(*this);
 	}
 
-	// 停止进化(为保证数据一致性，需在一次完整迭代后pause)
+	// 暂停(为保证数据一致性，需在一次完整迭代后pause)
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::pause()
 	{
@@ -599,19 +628,17 @@ namespace opt
 	/******************************************* Private Functions *****************************************************/
 	// 初始化种群
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::initGroup()
+	void GAGroup<R(Args...)>::initGroup(const std::vector<Individual>& init_indivs)
 	{
 		// 初始化前需要保证已设置基因变量区间
 		if (group_state.setBoundFlag)
 		{
-			// 如果种群已被初始化则不再重复初始化
-			if (group_state.initFlag == true)
-			{
-				return;
-			}
-
 			// 1.初始化每一个个体
-			for (int i = 0; i < groupSize; i++)
+			for (size_t i = 0; i < init_indivs.size(); i++)
+			{
+				indivs[i] = init_indivs[i];
+			}
+			for (size_t i = init_indivs.size(); i < groupSize; i++)
 			{
 				// 设置个体初始基因
 				for (int j = 0; j < nVars; j++)
@@ -839,7 +866,8 @@ namespace opt
 
 		// 是否达到最大迭代时间
 		std::chrono::duration<double> evolTime = group_state.nowTime - group_state.startTime;
-		if (group_state.setRuntimeFlag && evolTime.count() >= group_state.maxRuntime.value)
+		group_state.time = evolTime.count(); // 秒
+		if (group_state.setRuntimeFlag && group_state.time >= group_state.maxRuntime.value)
 		{
 			group_state.stopCode = 2;
 		}

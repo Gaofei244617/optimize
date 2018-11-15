@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <tuple>
 #include "bool_array.h"
+#include "ga_info.h"
 
 namespace opt
 {
@@ -31,7 +32,6 @@ namespace opt
 		GAGroup<R(Args...)>* ga;                          // 同步器关联的GA种群
 
 	public:
-
 		// 常规构造
 		GAThreadSync(GAGroup<R(Args...)>* ptr)
 			:crossReady(false),
@@ -158,6 +158,13 @@ namespace opt
 			if (ga->group_state.sleep.signal == true)
 			{
 				ga->group_state.sleep.result = true;
+			}
+
+			// 调用外部监听函数
+			if (ga->func != nullptr)
+			{
+				GA_Info ga_info(ga->group_state.time, ga->group_state.nGene, ga->bestIndivs.back());
+				ga->func(ga_info, ga->user_data);
 			}
 		}
 		else
