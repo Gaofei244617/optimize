@@ -76,7 +76,7 @@ void out_res(T& a)
 	cout << "子代最优解进化过程：" << endl;
 	cout << res[0].fitness << endl;
 	cout << endl;
-	for (size_t i = 1; i < res.size(); i++)
+	for (std::size_t i = 1; i < res.size(); i++)
 	{
 		if (res[i].fitness > res[i - 1].fitness)
 		{

@@ -35,7 +35,7 @@ namespace opt
 
 	private:
 		std::string name;                                                     // 种群名称
-		int groupSize;                                                        // 初始种群个体数量，default = 1000；
+		std::size_t groupSize;                                                        // 初始种群个体数量，default = 1000；
 		const int nVars;                                                      // 适应度函数包含的变量个数
 		Individual* indivs;                                                   // 种群个体, 指向groupSize个个体数组(最后一个存放最优个体)
 		Individual* tempIndivs;                                               // 子代个体缓存区
@@ -55,7 +55,7 @@ namespace opt
 		std::unique_ptr< GAThreadSync<R, Args...> > thread_sync;              // 线程同步器
 
 	public:
-		GAGroup(R(*f)(Args...), const int size = 1000);                       // 构造函数，构造一个种群，需提供适应度函数及种群数量
+		GAGroup(R(*f)(Args...), const std::size_t size = 1000);               // 构造函数，构造一个种群，需提供适应度函数及种群数量
 		GAGroup(GAGroup<R(Args...)>& other);                                  // 拷贝构造
 		GAGroup(GAGroup<R(Args...)>&& other);                                 // 移动构造
 		GAGroup<R(Args...)>& operator=(const GAGroup<R(Args...)>& other) = delete;
@@ -71,7 +71,7 @@ namespace opt
 		void setMutateProb(const double p);                                   // 设置基因变异概率
 		void setCrossProb(const double p);                                    // 设置交叉概率
 		void setThreadNum(const int NUM);                                     // 设置并行计算的线程数，默认为1
-		void setMonitor(void(*f)(const GA_Info&, void*), void* dat);           // 设置外部监听函数
+		void setMonitor(void(*f)(const GA_Info&, void*), void* dat);          // 设置外部监听函数
 
 		const std::string getName()const;                                     // 获取种群名称
 		int getNVars()const;                                                  // 获取种群变量个数
@@ -109,7 +109,7 @@ namespace opt
 	/******************************************* 构造与析构 ***********************************************************/
 	// 构造函数，需提供供适应度函数及种群数量
 	template<class R, class... Args>
-	GAGroup<R(Args...)>::GAGroup(R(*f)(Args...), const int size)
+	GAGroup<R(Args...)>::GAGroup(R(*f)(Args...), const std::size_t size)
 		:name("None"),
 		groupSize(size + size % 2),
 		nVars(sizeof...(Args)),
@@ -130,7 +130,7 @@ namespace opt
 		this->tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
 
 		// 在已分配的内存上构造个体对象
-		for (int i = 0; i < groupSize; i++)
+		for (std::size_t i = 0; i < groupSize; i++)
 		{
 			new(indivs + i) Individual(nVars);
 			new(tempIndivs + i) Individual(nVars);
@@ -236,7 +236,7 @@ namespace opt
 		if (indivs != nullptr)
 		{
 			// 析构种群中的每一个个体（共有groupSize个个体）
-			for (int i = 0; i < groupSize; i++)
+			for (std::size_t i = 0; i < groupSize; i++)
 			{
 				(indivs + i) -> ~Individual();
 			}
@@ -248,7 +248,7 @@ namespace opt
 		if (tempIndivs != nullptr)
 		{
 			// 析构种群中的每一个个体（共有groupSize个个体）
-			for (int i = 0; i < groupSize; i++)
+			for (std::size_t i = 0; i < groupSize; i++)
 			{
 				(tempIndivs + i) -> ~Individual();
 			}
@@ -273,8 +273,8 @@ namespace opt
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setBoundary(const GenBound& b)
 	{
-		const size_t len = b.size();
-		for (size_t i = 0; i < len; i++)
+		const std::size_t len = b.size();
+		for (std::size_t i = 0; i < len; i++)
 		{
 			bound[i][0] = *((*(b.begin() + i)).begin());         // 下边界
 			bound[i][1] = *((*(b.begin() + i)).begin() + 1);     // 上边界
@@ -634,11 +634,11 @@ namespace opt
 		if (group_state.setBoundFlag)
 		{
 			// 1.初始化每一个个体
-			for (size_t i = 0; i < init_indivs.size(); i++)
+			for (std::size_t i = 0; i < init_indivs.size(); i++)
 			{
 				indivs[i] = init_indivs[i];
 			}
-			for (size_t i = init_indivs.size(); i < groupSize; i++)
+			for (std::size_t i = init_indivs.size(); i < groupSize; i++)
 			{
 				// 设置个体初始基因
 				for (int j = 0; j < nVars; j++)
@@ -681,7 +681,7 @@ namespace opt
 		int thread_num = thread_sync->threadNum;          // 线程数
 
 		// 随机选取个体交叉, fitness越大，被选中的概率越大
-		for (int i = seq * 2; i < groupSize; i += 2 * thread_num)
+		for (std::size_t i = seq * 2; i < groupSize; i += 2 * thread_num)
 		{
 			// 随机选取两个个体作为父代
 			Index_M = roulette.roll();
@@ -726,7 +726,7 @@ namespace opt
 		int thread_num = thread_sync->threadNum;  // 线程数
 
 		// 每个个体的变异
-		for (int i = seq; i < groupSize; i += thread_num)
+		for (std::size_t i = seq; i < groupSize; i += thread_num)
 		{
 			// 每个基因的变异
 			for (int j = 0; j < nVars; j++)
@@ -774,7 +774,7 @@ namespace opt
 		int worst = 0;
 
 		// 遍历indivs的fitness，寻找fitness的最小值,记录最小值位置
-		for (int i = 1; i < groupSize; i++)
+		for (std::size_t i = 1; i < groupSize; i++)
 		{
 			if (indivs[i].fitness < indivs[worst].fitness)
 			{
@@ -783,7 +783,7 @@ namespace opt
 		}
 
 		// 更新轮盘赌刻度线
-		for (int i = 1; i < groupSize + 1; i++)
+		for (std::size_t i = 1; i < groupSize + 1; i++)
 		{
 			roulette[i] = roulette[i - 1] + (indivs[i - 1].fitness - indivs[worst].fitness);
 		}
@@ -828,7 +828,7 @@ namespace opt
 		int best = seq;
 
 		// 遍历indivs的fitness，寻找fitness的极值，记录极值位置
-		for (int i = seq + interval; i < groupSize; i += interval)
+		for (std::size_t i = seq + interval; i < groupSize; i += interval)
 		{
 			if (indivs[i].fitness < indivs[worst].fitness)
 			{
