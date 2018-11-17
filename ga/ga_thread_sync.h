@@ -161,10 +161,10 @@ namespace opt
 			}
 
 			// 调用外部监听函数
-			if (ga->func != nullptr)
+			if (ga->monitor)
 			{
 				GA_Info ga_info(ga->group_state.time, ga->group_state.nGene, ga->bestIndivs.back());
-				ga->func(ga_info, ga->user_data);
+				ga->monitor(ga_info);
 			}
 		}
 		else

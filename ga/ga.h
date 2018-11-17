@@ -7,6 +7,7 @@
 #include <vector>
 #include <cmath>
 #include <thread>
+#include <functional>
 
 #include "individual.h"
 #include "range_random.h"
@@ -35,15 +36,14 @@ namespace opt
 
 	private:
 		std::string name;                                                     // 种群名称
-		std::size_t groupSize;                                                        // 初始种群个体数量，default = 1000；
+		std::size_t groupSize;                                                // 初始种群个体数量，default = 1000；
 		const int nVars;                                                      // 适应度函数包含的变量个数
 		Individual* indivs;                                                   // 种群个体, 指向groupSize个个体数组(最后一个存放最优个体)
 		Individual* tempIndivs;                                               // 子代个体缓存区
 		R(*fitFunc)(Args...);                                                 // 适应度函数指针
-		void(*func)(const GA_Info&, void*);                                   // 外部监听函数
-		void* user_data;                                                      //
+		std::function<void(const GA_Info&)> monitor;                          // 外部监听器
 		double(*bound)[2];                                                    // 每个变量(基因)的区间, 以数组指针表示
-		Roulette<double> roulette;                                            //
+		Roulette<double> roulette;                                            // 轮盘赌对象
 		double mutateProb;                                                    // 个体变异概率,默认p = 0.1
 		double crossProb;                                                     // 个体交叉概率, 默认p = 0.6
 		std::vector<Individual> bestIndivs;                                   // 记录每次迭代的最优个体
@@ -71,7 +71,7 @@ namespace opt
 		void setMutateProb(const double p);                                   // 设置基因变异概率
 		void setCrossProb(const double p);                                    // 设置交叉概率
 		void setThreadNum(const int NUM);                                     // 设置并行计算的线程数，默认为1
-		void setMonitor(void(*f)(const GA_Info&, void*), void* dat);          // 设置外部监听函数
+		void setMonitor(const std::function<void(const GA_Info&)>&);          // 设置外部监听函数
 
 		const std::string getName()const;                                     // 获取种群名称
 		int getNVars()const;                                                  // 获取种群变量个数
@@ -116,8 +116,6 @@ namespace opt
 		indivs(nullptr),
 		tempIndivs(nullptr),
 		fitFunc(f),
-		func(nullptr),
-		user_data(nullptr),
 		bound(nullptr),
 		roulette(groupSize + 1),
 		mutateProb(0.1),
@@ -149,8 +147,6 @@ namespace opt
 		indivs(nullptr),
 		tempIndivs(nullptr),
 		fitFunc(other.fitFunc),
-		func(other.func),
-		user_data(other.user_data),
 		bound(nullptr),
 		roulette(),
 		mutateProb(other.mutateProb),
@@ -201,8 +197,6 @@ namespace opt
 		indivs(other.indivs),
 		tempIndivs(other.tempIndivs),
 		fitFunc(other.fitFunc),
-		func(other.func),
-		user_data(other.user_data),
 		bound(other.bound),
 		roulette(),
 		mutateProb(other.mutateProb),
@@ -349,10 +343,9 @@ namespace opt
 
 	// 设置外部监听函数
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::setMonitor(void(*f)(const GA_Info&, void*), void* dat)
+	void GAGroup<R(Args...)>::setMonitor(const std::function<void(const GA_Info&)>& func)
 	{
-		this->func = f;
-		this->user_data = dat;
+		this->monitor = func;
 	}
 
 	/*****************************************************************************************************************/
@@ -455,10 +448,10 @@ namespace opt
 			updateStopState();                // 更新停止状态
 
 			// 调用外部监听函数
-			if (func != nullptr)
+			if (monitor)
 			{
 				GA_Info ga_info(group_state.time, group_state.nGene, bestIndivs.back());
-				func(ga_info, user_data);
+				monitor(ga_info);
 			}
 
 			// 判断是否到达停止条件

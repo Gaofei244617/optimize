@@ -11,8 +11,7 @@
 #include <windows.h>
 
 ////////////////////////////////////////////////////////////////////////
-#include <stdio.h>
-#include <string.h>
+#include <string>
 
 using namespace std;
 using namespace opt;
@@ -41,9 +40,10 @@ double test_Func2(double x, double y)
 	return -0.2*((x - 13)*(x - 13) + (y - 17)*(y - 17)) + 21;
 }
 
-void monitor(const GA_Info& indiv, void* dat)
+void monitor(const GA_Info& indiv, vector<double>& my)
 {
 	cout << "***********************************" << endl;
+	my.push_back(3.1415926);
 	cout << "NGen: " << indiv.NGen << endl;
 	cout << "Time: " << indiv.time << endl;
 }
@@ -97,11 +97,18 @@ int main()
 
 	a.setThreadNum(4);
 	//a.setThreadNum(1);
+	vector<double> vec;
 
-	a.setMonitor(monitor, nullptr);
+	//a.setMonitor(std::bind(monitor, std::placeholders::_1, vec));
+	a.setMonitor([&vec](const GA_Info& indiv) {
+		cout << "***********************************" << endl;
+		cout << "NGen: " << indiv.NGen << endl;
+		cout << "Time: " << indiv.time << endl;
+		vec.push_back(2.71);
+	});
 
 	// profile
-	DWORD start = GetTickCount();
+	ULONGLONG start = GetTickCount64();
 
 	a.start();
 
@@ -117,7 +124,9 @@ int main()
 
 	a.wait_result();
 
-	DWORD end = GetTickCount();
+	ULONGLONG end = GetTickCount64();
+
+	cout << "Changdu: " << vec.size() << endl;
 
 	cout << "The run time is:" << (end - start) / 1000.0 << " s" << endl;
 	cout << endl;
