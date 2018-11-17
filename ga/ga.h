@@ -161,7 +161,7 @@ namespace opt
 		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
 		this->tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
 
-		for (int i = 0; i < groupSize; i++)
+		for (std::size_t i = 0; i < groupSize; i++)
 		{
 			new(indivs + i) Individual(*(other.indivs + i));
 			new(tempIndivs + i) Individual(*(other.tempIndivs + i));
@@ -347,8 +347,6 @@ namespace opt
 	{
 		this->monitor = func;
 	}
-
-	/*****************************************************************************************************************/
 
 	/**************************************Getter*********************************************************************/
 	// 获取种群名称

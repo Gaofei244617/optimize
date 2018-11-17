@@ -117,16 +117,14 @@ int main()
 	//a.proceed();
 	//cout << "go on..." << endl;
 
-	//auto b = a.clone();
-	//GAGroup<double(double, double)> c(b);
+	auto b = a.clone();
+	GAGroup<double(double, double)> c(b);
 
 	//a.kill();
 
 	a.wait_result();
 
 	ULONGLONG end = GetTickCount64();
-
-	cout << "Changdu: " << vec.size() << endl;
 
 	cout << "The run time is:" << (end - start) / 1000.0 << " s" << endl;
 	cout << endl;
@@ -137,16 +135,18 @@ int main()
 
 	std::cout << std::endl;
 
-	//auto flag = b.start();
-	//c.start();
+	auto flag = b.start();
+	c.start();
 
 	//cout << "B = " << flag << endl;
-	//b.wait_result();
-	//out_res(b);
+	b.wait_result();
+	out_res(b);
 
-	//c.wait_result();
+	c.wait_result();
 
-	//out_res(c);
+	out_res(c);
+
+	cout << "Changdu: " << vec.size() << endl;
 
 	system("pause");
 	return 0;
