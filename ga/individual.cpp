@@ -4,16 +4,18 @@
 namespace opt
 {
 	// 构造函数，n:变量个数，str:隶属的种群
-	Individual::Individual(const int n) : nVars(n), fitness(0)
+	Individual::Individual(const std::size_t n) : nVars(n), fitness(0)
 	{
 		vars = new double[n]();
 	}
 
 	// 构造函数
-	Individual::Individual(const std::initializer_list<double>& list) : nVars(list.size()), fitness(0)
+	Individual::Individual(const std::initializer_list<double>& list)
+		: nVars(list.size()),
+		fitness(0)
 	{
 		vars = new double[nVars]();
-		for (int i = 0; i < nVars; i++)
+		for (std::size_t i = 0; i < nVars; i++)
 		{
 			vars[i] = *(list.begin() + i);
 		}
@@ -23,14 +25,17 @@ namespace opt
 	Individual::Individual(const Individual& other) : nVars(other.nVars), fitness(other.fitness)
 	{
 		vars = new double[other.nVars];
-		for (int i = 0; i < nVars; i++)
+		for (std::size_t i = 0; i < nVars; i++)
 		{
 			vars[i] = (other.vars[i]);
 		}
 	}
 
 	// 移动构造
-	Individual::Individual(Individual&& other) : nVars(other.nVars), vars(other.vars), fitness(other.fitness)
+	Individual::Individual(Individual&& other)noexcept
+		: nVars(other.nVars),
+		vars(other.vars),
+		fitness(other.fitness)
 	{
 		other.vars = nullptr;
 	}
@@ -48,7 +53,7 @@ namespace opt
 			}
 
 			// 拷贝各个变量的值
-			for (int i = 0; i < nVars; i++)
+			for (std::size_t i = 0; i < nVars; i++)
 			{
 				vars[i] = (other.vars[i]);
 			}
