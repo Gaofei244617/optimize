@@ -37,7 +37,7 @@ namespace opt
 	private:
 		std::string name;                                                     // 种群名称
 		std::size_t groupSize;                                                // 初始种群个体数量，default = 1000；
-		const int nVars;                                                      // 适应度函数包含的变量个数
+		const std::size_t nVars;                                                      // 适应度函数包含的变量个数
 		Individual* indivs;                                                   // 种群个体, 指向groupSize个个体数组(最后一个存放最优个体)
 		Individual* tempIndivs;                                               // 子代个体缓存区
 		R(*fitFunc)(Args...);                                                 // 适应度函数指针
@@ -147,6 +147,7 @@ namespace opt
 		indivs(nullptr),
 		tempIndivs(nullptr),
 		fitFunc(other.fitFunc),
+		monitor(other.monitor),
 		bound(nullptr),
 		roulette(),
 		mutateProb(other.mutateProb),
@@ -169,7 +170,7 @@ namespace opt
 
 		// 变量区间
 		bound = new double[nVars][2];
-		for (int i = 0; i < nVars; i++)
+		for (std::size_t i = 0; i < nVars; i++)
 		{
 			bound[i][0] = (other.bound)[i][0];
 			bound[i][1] = (other.bound)[i][1];
@@ -197,6 +198,7 @@ namespace opt
 		indivs(other.indivs),
 		tempIndivs(other.tempIndivs),
 		fitFunc(other.fitFunc),
+		monitor(other.monitor),
 		bound(other.bound),
 		roulette(),
 		mutateProb(other.mutateProb),
@@ -632,7 +634,7 @@ namespace opt
 			for (std::size_t i = init_indivs.size(); i < groupSize; i++)
 			{
 				// 设置个体初始基因
-				for (int j = 0; j < nVars; j++)
+				for (std::size_t j = 0; j < nVars; j++)
 				{
 					indivs[i].vars[j] = random_real(bound[j][0], bound[j][1]);
 				}
@@ -679,7 +681,7 @@ namespace opt
 			Index_F = roulette.roll();
 
 			// 生成子代个体, 存放于缓存数组tempIndivs中
-			for (int j = 0; j < nVars; j++)
+			for (std::size_t j = 0; j < nVars; j++)
 			{
 				// 依据交叉概率决定基因是否进行交叉
 				rand_cross = random_real(0, 1);
@@ -720,7 +722,7 @@ namespace opt
 		for (std::size_t i = seq; i < groupSize; i += thread_num)
 		{
 			// 每个基因的变异
-			for (int j = 0; j < nVars; j++)
+			for (std::size_t j = 0; j < nVars; j++)
 			{
 				rand_num = random_real(0, 1);
 				if (rand_num < mutateProb)
