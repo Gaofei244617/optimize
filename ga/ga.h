@@ -20,6 +20,8 @@
 #include "index_seq.h"
 #include "ga_info.h"
 
+#define FACTOR 0.6
+
 /////////////////////////////////////////////////
 #include <iostream>
 
@@ -37,11 +39,13 @@ namespace opt
 	private:
 		std::string name;                                                     // 种群名称
 		std::size_t groupSize;                                                // 初始种群个体数量，default = 1000；
-		const std::size_t nVars;                                                      // 适应度函数包含的变量个数
+		std::size_t groupCapacity;                                            //
+		const std::size_t nVars;                                              // 适应度函数包含的变量个数
 		Individual* indivs;                                                   // 种群个体, 指向groupSize个个体数组(最后一个存放最优个体)
 		Individual* tempIndivs;                                               // 子代个体缓存区
 		R(*fitFunc)(Args...);                                                 // 适应度函数指针
 		std::function<void(const GA_Info&)> monitor;                          // 外部监听器
+		std::function<std::size_t(const std::size_t&)> resize;                // 种群数量动态调整
 		double(*bound)[2];                                                    // 每个变量(基因)的区间, 以数组指针表示
 		Roulette<double> roulette;                                            // 轮盘赌对象
 		double mutateProb;                                                    // 个体变异概率,默认p = 0.1
@@ -112,6 +116,7 @@ namespace opt
 	GAGroup<R(Args...)>::GAGroup(R(*f)(Args...), const std::size_t size)
 		:name("None"),
 		groupSize(size + size % 2),
+		groupCapacity(groupSize),
 		nVars(sizeof...(Args)),
 		indivs(nullptr),
 		tempIndivs(nullptr),
@@ -143,6 +148,7 @@ namespace opt
 	GAGroup<R(Args...)>::GAGroup(GAGroup<R(Args...)>& other)
 		:name(other.name),
 		groupSize(other.groupSize),
+		groupCapacity(groupSize),
 		nVars(other.nVars),
 		indivs(nullptr),
 		tempIndivs(nullptr),
