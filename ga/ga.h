@@ -22,9 +22,6 @@
 
 #define FACTOR 0.6
 
-/////////////////////////////////////////////////
-#include <iostream>
-
 namespace opt
 {
 	template<class F> class GAGroup;
@@ -104,10 +101,12 @@ namespace opt
 		void updateStopState();                                               // 更新种群停止状态
 		void switchIndivArray();
 
+		void re_memory(const std::size_t size);                               // 重新分配个体存储空间
+
 		std::pair<int, int> selectPolarIndivs(const int seq, const int interval);   // 寻找最差和最好的个体位置,返回<worst, best>
 		template<std::size_t... I>
-		R callFitFunc(double* args, const opt::index_seq<I...>&);               // 调用适应度函数
-		bool flushStopFlag();                                                   // 判断是否结束迭代
+		R callFitFunc(double* args, const opt::index_seq<I...>&);              // 调用适应度函数
+		bool flushStopFlag();                                                  // 判断是否结束迭代
 	};
 
 	/******************************************* 构造与析构 ***********************************************************/
@@ -480,17 +479,7 @@ namespace opt
 	{
 		while (true)
 		{
-			/////////////////////////////// Crossover ///////////////////////////////
-			// 为保证数据一致性，需在一次完整迭代后pause
-			{
-				std::unique_lock<std::mutex> lck(thread_sync->mtx);
-				thread_sync->cv.wait(lck, [this, &seq]() {
-					return !(this->thread_sync->cross_flag[seq]) && this->thread_sync->crossReady && !(this->group_state.sleep.signal);
-				});
-			}
-
-			if (group_state.stopFlag == true) { return; }
-
+			/////////////////////////////// Crossover /////////////////////////////////////////////////////
 			crossover(seq);
 
 			// 线程同步
@@ -499,7 +488,6 @@ namespace opt
 			thread_sync->mtx.unlock();
 			thread_sync->cv.notify_all();
 
-			/////////////////////////////// Mutate ///////////////////////////////
 			{
 				std::unique_lock<std::mutex> lck(thread_sync->mtx);
 				thread_sync->cv.wait(lck, [this, &seq]() {
@@ -507,6 +495,7 @@ namespace opt
 				});
 			}
 
+			/////////////////////////////// Mutate /////////////////////////////////////////////////////
 			mutate(seq);
 
 			// 线程同步
@@ -515,7 +504,6 @@ namespace opt
 			thread_sync->mtx.unlock();
 			thread_sync->cv.notify_all();
 
-			/////////////////////////////// Select ///////////////////////////////
 			{
 				std::unique_lock<std::mutex> lck(thread_sync->mtx);
 				thread_sync->cv.wait(lck, [this, &seq]() {
@@ -523,6 +511,7 @@ namespace opt
 				});
 			}
 
+			/////////////////////////////// Select /////////////////////////////////////////////////////
 			int worst_temp = 0;
 			int best_temp = 0;
 
@@ -547,6 +536,16 @@ namespace opt
 			thread_sync->select_sync(seq);
 			thread_sync->mtx.unlock();
 			thread_sync->cv.notify_all();
+
+			// 为保证数据一致性，需在一次完整迭代后pause
+			{
+				std::unique_lock<std::mutex> lck(thread_sync->mtx);
+				thread_sync->cv.wait(lck, [this, &seq]() {
+					return !(this->thread_sync->cross_flag[seq]) && this->thread_sync->crossReady && !(this->group_state.sleep.signal);
+				});
+			}
+
+			if (group_state.stopFlag == true) { return; }
 		}
 	}
 
@@ -817,6 +816,45 @@ namespace opt
 		Individual* temp = indivs;
 		indivs = tempIndivs;
 		tempIndivs = temp;
+	}
+
+	// 重新分配个体存储空间
+	template<class R, class... Args>
+	void GAGroup<R(Args...)>::re_memory(const std::size_t size)
+	{
+		// 是否设置resize函数
+		if (resize)
+		{
+			// 计算子代个体数量
+			std::size_t count = size;
+
+			// 重新分配子代存储区
+			if (count < groupCapacity * FACTOR || count > groupCapacity)
+			{
+				for (std::size_t i = 0; i < groupSize; i++)
+				{
+					(tempIndivs + i) -> ~Individual();
+				}
+				// 释放个体对象指针
+				::operator delete(tempIndivs);
+
+				// 多分配20%内存
+				if (count > groupCapacity)
+				{
+					count = std::size_t(count * 1.2);
+				}
+
+				count = count + count % 2;
+				tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * count));
+
+				// 在已分配的内存上构造个体对象
+				for (std::size_t i = 0; i < count; i++)
+				{
+					new(tempIndivs + i) Individual(nVars);
+				}
+				groupCapacity = count;
+			}
+		}
 	}
 
 	// 寻找最差和最好的个体位置, 形参为线程ID(0 ~ N)及并行线程数量, 返回pair<worst, best>
