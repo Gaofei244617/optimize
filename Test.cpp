@@ -88,15 +88,15 @@ void out_res(T& a)
 
 int main()
 {
-	auto a = opt::createGAGroup(test_Func2, 500000);
+	auto a = opt::createGAGroup(test_Func2, 250000);
 	a.setBoundary({ {0, 25}, {0, 35} });
 	a.setCrossProb(0.95);
 
 	a.setMaxGeneration(6);
 	//a.setMaxRuntime(Second(0.6));
 
-	a.setThreadNum(4);
-	//a.setThreadNum(1);
+	//a.setThreadNum(4);
+	a.setThreadNum(1);
 	vector<double> vec;
 
 	//a.setMonitor(std::bind(monitor, std::placeholders::_1, vec));

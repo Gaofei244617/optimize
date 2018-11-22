@@ -101,7 +101,7 @@ namespace opt
 		void updateStopState();                                               // 更新种群停止状态
 		void switchIndivArray();
 
-		void re_memory(const std::size_t size);                               // 重新分配个体存储空间
+		void re_memory();                                                     // 重新分配个体存储空间
 
 		std::pair<int, int> selectPolarIndivs(const int seq, const int interval);   // 寻找最差和最好的个体位置,返回<worst, best>
 		template<std::size_t... I>
@@ -408,12 +408,6 @@ namespace opt
 	{
 		while (true)
 		{
-			// 是否暂停迭代(为保证数据一致性，需在一次完整迭代后pause)
-			{
-				std::unique_lock<std::mutex> lck(thread_sync->mtx);
-				thread_sync->cv.wait(lck, [this]() { return !(this->group_state.sleep.signal); });
-			}
-
 			updateRoulette();                 // 更新更新轮盘赌刻度线
 			crossover(0);                     // 交叉
 			switchIndivArray();               // 交换个体数组
@@ -438,6 +432,12 @@ namespace opt
 			{
 				group_state.sleep.result = true;
 				thread_sync->cv.notify_all();
+			}
+
+			// 是否暂停迭代(为保证数据一致性，需在一次完整迭代后pause)
+			{
+				std::unique_lock<std::mutex> lck(thread_sync->mtx);
+				thread_sync->cv.wait(lck, [this]() { return !(this->group_state.sleep.signal); });
 			}
 		}
 	}
@@ -789,39 +789,31 @@ namespace opt
 
 	// 重新分配个体存储空间
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::re_memory(const std::size_t size)
+	void GAGroup<R(Args...)>::re_memory()
 	{
 		// 是否设置resize函数
 		if (resize)
 		{
-			// 计算子代个体数量
-			std::size_t count = size;
+			// 内存分配策略：
+			// (1) 子代个体数量小于种群存储区60%时,重新分配内存
+			// (2) 子代个体数量大于种群存储区时,重新分配内存,并多分配20%
 
-			// 重新分配子代存储区
-			if (count < groupCapacity * FACTOR || count > groupCapacity)
+			std::size_t size = resize(group_state.nGene + 1);
+			if (size < groupCapacity*FACTOR || size > groupCapacity)
 			{
-				for (std::size_t i = 0; i < groupSize; i++)
+				std::size_t capacity = size;
+				if (size > groupCapacity)
 				{
-					(tempIndivs + i) -> ~Individual();
+					capacity = std::size_t(size*1.2);
 				}
-				// 释放个体对象指针
-				::operator delete(tempIndivs);
+				capacity = capacity + capacity % 2;
 
-				// 多分配20%内存
-				if (count > groupCapacity)
+				delete[] tempIndivs;
+				tempIndivs = new Individual[capacity];
+				for (std::size_t i = 0; i < capacity; i++)
 				{
-					count = std::size_t(count * 1.2);
+					tempIndivs[i] = Individual(nVars);
 				}
-
-				count = count + count % 2;
-				tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * count));
-
-				// 在已分配的内存上构造个体对象
-				for (std::size_t i = 0; i < count; i++)
-				{
-					new(tempIndivs + i) Individual(nVars);
-				}
-				groupCapacity = count;
 			}
 		}
 	}
