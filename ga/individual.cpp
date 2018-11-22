@@ -4,15 +4,18 @@
 namespace opt
 {
 	// 构造函数，n:变量个数，str:隶属的种群
+	Individual::Individual() : nVars(0), vars(nullptr), fitness(0)
+	{
+	}
+
+	// 构造函数，n:变量个数，str:隶属的种群
 	Individual::Individual(const std::size_t n) : nVars(n), fitness(0)
 	{
 		vars = new double[n]();
 	}
 
 	// 构造函数
-	Individual::Individual(const std::initializer_list<double>& list)
-		: nVars(list.size()),
-		fitness(0)
+	Individual::Individual(const std::initializer_list<double>& list) : nVars(list.size()), fitness(0)
 	{
 		vars = new double[nVars]();
 		for (std::size_t i = 0; i < nVars; i++)
@@ -33,15 +36,15 @@ namespace opt
 
 	// 移动构造
 	Individual::Individual(Individual&& other)noexcept
-		: nVars(other.nVars),
+		:nVars(other.nVars),
 		vars(other.vars),
 		fitness(other.fitness)
 	{
 		other.vars = nullptr;
 	}
 
-	// 赋值构造
-	Individual& Individual::operator=(const Individual& other)
+	// 赋值函数
+	Individual& Individual::operator=(const Individual& other)noexcept
 	{
 		// 避免自赋值
 		if (this != &other)
@@ -49,13 +52,15 @@ namespace opt
 			// 若变量个数不相等，抛出异常
 			if (nVars != other.nVars)
 			{
-				throw std::string("Two individuals do not match.");
+				delete[] vars;
+				vars = new double[other.nVars]();
+				nVars = other.nVars;
 			}
 
 			// 拷贝各个变量的值
 			for (std::size_t i = 0; i < nVars; i++)
 			{
-				vars[i] = (other.vars[i]);
+				vars[i] = (other.vars)[i];
 			}
 			fitness = other.fitness;
 		}
@@ -63,19 +68,17 @@ namespace opt
 	}
 
 	// 移动赋值
-	Individual& Individual::operator=(Individual&& other)
+	Individual& Individual::operator=(Individual&& other)noexcept
 	{
 		// 避免自赋值
 		if (this != &other)
 		{
-			// 若变量个数不相等，抛出异常
-			if (nVars != other.nVars)
-			{
-				throw std::string("Two individuals do not match.");
-			}
+			nVars = other.nVars;
 			vars = other.vars;
 			other.vars = nullptr;
+			other.nVars = 0;
 			fitness = other.fitness;
+			other.fitness = 0;
 		}
 		return *this;
 	}
@@ -84,6 +87,5 @@ namespace opt
 	Individual::~Individual()
 	{
 		delete[] vars;
-		vars = nullptr;
 	}
 }

@@ -117,8 +117,8 @@ namespace opt
 		groupSize(size + size % 2),
 		groupCapacity(groupSize),
 		nVars(sizeof...(Args)),
-		indivs(nullptr),
-		tempIndivs(nullptr),
+		indivs(new Individual[groupSize]),
+		tempIndivs(new Individual[groupSize]),
 		fitFunc(f),
 		bound(nullptr),
 		roulette(groupSize + 1),
@@ -127,15 +127,10 @@ namespace opt
 		group_state(),
 		thread_sync(new GAThreadSync<R, Args...>(this))
 	{
-		// 分配个体内存，但不构造个体(Indivadual无默认构造),最后一个位置用于存放最优个体
-		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
-		this->tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
-
-		// 在已分配的内存上构造个体对象
 		for (std::size_t i = 0; i < groupSize; i++)
 		{
-			new(indivs + i) Individual(nVars);
-			new(tempIndivs + i) Individual(nVars);
+			indivs[i] = Individual(nVars);
+			tempIndivs[i] = Individual(nVars);
 		}
 
 		// 变量区间
@@ -149,8 +144,8 @@ namespace opt
 		groupSize(other.groupSize),
 		groupCapacity(groupSize),
 		nVars(other.nVars),
-		indivs(nullptr),
-		tempIndivs(nullptr),
+		indivs(new Individual[groupSize]),
+		tempIndivs(new Individual[groupSize]),
 		fitFunc(other.fitFunc),
 		monitor(other.monitor),
 		bound(nullptr),
@@ -163,14 +158,10 @@ namespace opt
 	{
 		other.pause();
 
-		// 成员拷贝
-		this->indivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
-		this->tempIndivs = static_cast<Individual*>(::operator new(sizeof(Individual) * groupSize));
-
 		for (std::size_t i = 0; i < groupSize; i++)
 		{
-			new(indivs + i) Individual(*(other.indivs + i));
-			new(tempIndivs + i) Individual(*(other.tempIndivs + i));
+			indivs[i] = (other.indivs)[i];
+			tempIndivs[i] = (other.indivs)[i];
 		}
 
 		// 变量区间
@@ -199,6 +190,7 @@ namespace opt
 	GAGroup<R(Args...)>::GAGroup(GAGroup<R(Args...)>&& other)
 		:name(other.name),
 		groupSize(other.groupSize),
+		groupCapacity(other.groupCapacity),
 		nVars(other.nVars),
 		indivs(other.indivs),
 		tempIndivs(other.tempIndivs),
@@ -233,31 +225,8 @@ namespace opt
 	template<class R, class... Args>
 	GAGroup<R(Args...)>::~GAGroup()
 	{
-		// 析构indivs数组
-		if (indivs != nullptr)
-		{
-			// 析构种群中的每一个个体（共有groupSize个个体）
-			for (std::size_t i = 0; i < groupSize; i++)
-			{
-				(indivs + i) -> ~Individual();
-			}
-			// 释放个体对象指针
-			::operator delete(indivs);
-		}
-
-		// 析构tempIndivs数组
-		if (tempIndivs != nullptr)
-		{
-			// 析构种群中的每一个个体（共有groupSize个个体）
-			for (std::size_t i = 0; i < groupSize; i++)
-			{
-				(tempIndivs + i) -> ~Individual();
-			}
-			// 释放个体对象指针
-			::operator delete(tempIndivs);
-		}
-
-		// 释放Boundary数组指针
+		delete[] indivs;
+		delete[] tempIndivs;
 		delete[] bound;
 	}
 	/*****************************************************************************************************************/
