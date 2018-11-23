@@ -144,7 +144,7 @@ namespace opt
 			}
 
 			// 更新轮盘赌刻度线
-			ga->updateRoulette();
+			ga->updateRoulette(ga->groupSize);
 
 			// 更新GA种群停止状态
 			ga->updateStopState();
@@ -165,6 +165,14 @@ namespace opt
 			{
 				GA_Info ga_info(ga->group_state.time, ga->group_state.nGene, ga->bestIndivs.back());
 				ga->monitor(ga_info);
+			}
+
+			// 更新子代个体数量
+			if (ga->resize)
+			{
+				std::size_t count = ga->resize(ga->group_state.nGene + 1);
+				if (count < 0) { count = 0; }
+				ga->groupSize = count + count % 2;
 			}
 		}
 		else

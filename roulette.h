@@ -10,12 +10,12 @@ namespace opt
 	class Roulette
 	{
 	private:
-		int mark_num;                                           // 刻度线数量
+		std::size_t mark_num;                                   // 刻度线数量
 		T* tick_mark;                                           // 轮盘刻度线(需保证数值单调递增)
 
 	public:
 		Roulette();                                             // 构造函数
-		Roulette(const int N);                                  // 构造函数
+		Roulette(const std::size_t N);                          // 构造函数
 		Roulette(const Roulette<T>& other);                     // 拷贝构造
 		Roulette(Roulette<T>&& other);                          // 移动构造
 		Roulette<T>& operator=(const Roulette<T>& other);       // 赋值函数
@@ -23,7 +23,8 @@ namespace opt
 		~Roulette();                                            // 析构函数
 
 		int roll();                                             // 轮盘随机转动
-		T& operator[](const int& i);
+		T& operator[](const std::size_t& i);
+		void reset(const std::size_t N);                        // 重新划分刻度线
 	};
 
 	// 构造函数
@@ -35,7 +36,7 @@ namespace opt
 
 	// 构造函数
 	template<class T>
-	Roulette<T>::Roulette(const int N)
+	Roulette<T>::Roulette(const std::size_t N)
 		: mark_num(N),
 		tick_mark(new T[N]())
 	{}
@@ -133,9 +134,21 @@ namespace opt
 
 	// 获取轮盘赌刻度线
 	template<class T>
-	T& Roulette<T>::operator[](const int& i)
+	T& Roulette<T>::operator[](const std::size_t& i)
 	{
 		return tick_mark[i];
+	}
+
+	//
+	template<class T>
+	void Roulette<T>::reset(const std::size_t N)
+	{
+		if (N != mark_num)
+		{
+			delete[] tick_mark;
+			tick_mark = new T[N]();
+			mark_num = N;
+		}
 	}
 }
 

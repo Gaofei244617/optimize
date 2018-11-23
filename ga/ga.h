@@ -20,6 +20,9 @@
 #include "index_seq.h"
 #include "ga_info.h"
 
+////////
+#include <iostream>
+
 #define FACTOR 0.6
 
 namespace opt
@@ -42,7 +45,7 @@ namespace opt
 		Individual* tempIndivs;                                               // 子代个体缓存区
 		R(*fitFunc)(Args...);                                                 // 适应度函数指针
 		std::function<void(const GA_Info&)> monitor;                          // 外部监听器
-		std::function<std::size_t(const std::size_t&)> resize;                // 种群数量动态调整
+		std::function<std::size_t(std::size_t)> resize;                       // 种群数量动态调整
 		double(*bound)[2];                                                    // 每个变量(基因)的区间, 以数组指针表示
 		Roulette<double> roulette;                                            // 轮盘赌对象
 		double mutateProb;                                                    // 个体变异概率,默认p = 0.1
@@ -73,6 +76,7 @@ namespace opt
 		void setCrossProb(const double p);                                    // 设置交叉概率
 		void setThreadNum(const int NUM);                                     // 设置并行计算的线程数，默认为1
 		void setMonitor(const std::function<void(const GA_Info&)>&);          // 设置外部监听函数
+		void setResize(const std::function<std::size_t(std::size_t)>&); // 种群数量调整函数
 
 		const std::string getName()const;                                     // 获取种群名称
 		int getNVars()const;                                                  // 获取种群变量个数
@@ -97,11 +101,9 @@ namespace opt
 		void run();                                                           // 单线程迭代
 		void run_parallel(const int seq);                                     // 并行迭代
 
-		void updateRoulette();                                                // 更新轮盘赌刻度线
+		void updateRoulette(const std::size_t size);                          // 更新轮盘赌刻度线
 		void updateStopState();                                               // 更新种群停止状态
 		void switchIndivArray();
-
-		void re_memory();                                                     // 重新分配个体存储空间
 
 		std::pair<int, int> selectPolarIndivs(const int seq, const int interval);   // 寻找最差和最好的个体位置,返回<worst, best>
 		template<std::size_t... I>
@@ -148,6 +150,7 @@ namespace opt
 		tempIndivs(new Individual[groupSize]),
 		fitFunc(other.fitFunc),
 		monitor(other.monitor),
+		resize(other.resize),
 		bound(nullptr),
 		roulette(),
 		mutateProb(other.mutateProb),
@@ -196,6 +199,7 @@ namespace opt
 		tempIndivs(other.tempIndivs),
 		fitFunc(other.fitFunc),
 		monitor(other.monitor),
+		resize(other.resize),
 		bound(other.bound),
 		roulette(),
 		mutateProb(other.mutateProb),
@@ -324,6 +328,13 @@ namespace opt
 		this->monitor = func;
 	}
 
+	// 种群数量调整函数
+	template<class R, class... Args>
+	void GAGroup<R(Args...)>::setResize(const std::function<std::size_t(std::size_t)>& func)
+	{
+		this->resize = func;
+	}
+
 	/**************************************Getter*********************************************************************/
 	// 获取种群名称
 	template<class R, class... Args>
@@ -408,14 +419,23 @@ namespace opt
 	{
 		while (true)
 		{
-			updateRoulette();                 // 更新更新轮盘赌刻度线
+			// 更新更新轮盘赌刻度线
+			updateRoulette(groupSize);
+
+			// 更新子代个体数量
+			if (resize)
+			{
+				groupSize = resize(group_state.nGene + 1);
+				if (groupSize < 0) { groupSize = 0; }
+				groupSize = groupSize + groupSize % 2;
+			}
 			crossover(0);                     // 交叉
 			switchIndivArray();               // 交换个体数组
 			mutate(0);                        // 变异
 			select(0);                        // 环境选择
 			updateStopState();                // 更新停止状态
 
-			// 调用外部监听函数
+			//// 调用外部监听函数
 			if (monitor)
 			{
 				GA_Info ga_info(group_state.time, group_state.nGene, bestIndivs.back());
@@ -423,11 +443,9 @@ namespace opt
 			}
 
 			// 判断是否到达停止条件
-			if (flushStopFlag())
-			{
-				return;
-			}
+			if (flushStopFlag()) { return; }
 
+			// 是否暂停迭代
 			if (group_state.sleep.signal == true)
 			{
 				group_state.sleep.result = true;
@@ -621,7 +639,7 @@ namespace opt
 			bestIndivs.push_back(indivs[group_state.bestIndex]);                     // 记录最优解
 
 			// 3.更新轮盘赌刻度线
-			updateRoulette();
+			updateRoulette(groupSize);
 
 			// 4.设置初始化标志位
 			group_state.initFlag = true;
@@ -736,12 +754,12 @@ namespace opt
 
 	// 更新轮盘赌刻度线
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::updateRoulette()
+	void GAGroup<R(Args...)>::updateRoulette(const std::size_t size)
 	{
 		int worst = 0;
 
 		// 遍历indivs的fitness，寻找fitness的最小值,记录最小值位置
-		for (std::size_t i = 1; i < groupSize; i++)
+		for (std::size_t i = 1; i < size; i++)
 		{
 			if (indivs[i].fitness < indivs[worst].fitness)
 			{
@@ -749,8 +767,11 @@ namespace opt
 			}
 		}
 
+		// 重新划分刻度线
+		roulette.reset(size + 1);
+
 		// 更新轮盘赌刻度线
-		for (std::size_t i = 1; i < groupSize + 1; i++)
+		for (std::size_t i = 1; i < size + 1; i++)
 		{
 			roulette[i] = roulette[i - 1] + (indivs[i - 1].fitness - indivs[worst].fitness);
 		}
@@ -765,6 +786,10 @@ namespace opt
 
 		// 记录当前时间
 		group_state.nowTime = std::chrono::steady_clock::now();
+
+		// 是否达到最大迭代时间
+		std::chrono::duration<double> evolTime = group_state.nowTime - group_state.startTime;
+		group_state.time = evolTime.count(); // 秒
 
 		// 判断最优个体fitness值较上一代的波动情况
 		if (abs(bestIndivs[group_state.nGene - 1].fitness - bestIndivs[group_state.nGene].fitness) <= group_state.stopTol)
@@ -785,37 +810,6 @@ namespace opt
 		Individual* temp = indivs;
 		indivs = tempIndivs;
 		tempIndivs = temp;
-	}
-
-	// 重新分配个体存储空间
-	template<class R, class... Args>
-	void GAGroup<R(Args...)>::re_memory()
-	{
-		// 是否设置resize函数
-		if (resize)
-		{
-			// 内存分配策略：
-			// (1) 子代个体数量小于种群存储区60%时,重新分配内存
-			// (2) 子代个体数量大于种群存储区时,重新分配内存,并多分配20%
-
-			std::size_t size = resize(group_state.nGene + 1);
-			if (size < groupCapacity*FACTOR || size > groupCapacity)
-			{
-				std::size_t capacity = size;
-				if (size > groupCapacity)
-				{
-					capacity = std::size_t(size*1.2);
-				}
-				capacity = capacity + capacity % 2;
-
-				delete[] tempIndivs;
-				tempIndivs = new Individual[capacity];
-				for (std::size_t i = 0; i < capacity; i++)
-				{
-					tempIndivs[i] = Individual(nVars);
-				}
-			}
-		}
 	}
 
 	// 寻找最差和最好的个体位置, 形参为线程ID(0 ~ N)及并行线程数量, 返回pair<worst, best>
@@ -862,9 +856,6 @@ namespace opt
 			group_state.stopCode = 1;
 		}
 
-		// 是否达到最大迭代时间
-		std::chrono::duration<double> evolTime = group_state.nowTime - group_state.startTime;
-		group_state.time = evolTime.count(); // 秒
 		if (group_state.setRuntimeFlag && group_state.time >= group_state.maxRuntime.value)
 		{
 			group_state.stopCode = 2;
