@@ -76,7 +76,7 @@ namespace opt
 		void setCrossProb(const double p);                                    // 设置交叉概率
 		void setThreadNum(const int NUM);                                     // 设置并行计算的线程数，默认为1
 		void setMonitor(const std::function<void(const GA_Info&)>&);          // 设置外部监听函数
-		void setResize(const std::function<std::size_t(std::size_t)>&); // 种群数量调整函数
+		void setResize(const std::function<std::size_t(std::size_t)>&);       // 种群数量调整函数
 
 		const std::string getName()const;                                     // 获取种群名称
 		int getNVars()const;                                                  // 获取种群变量个数
@@ -473,6 +473,7 @@ namespace opt
 			thread_sync->mtx.lock();
 			thread_sync->cross_sync(seq);
 			thread_sync->mtx.unlock();
+
 			thread_sync->cv.notify_all();
 
 			{

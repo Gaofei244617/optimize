@@ -19,6 +19,9 @@ GAGroup(R(*f)(Args...), const int size = 1000);
 GAGroup(const GAGroup<R(Args...)>& other);  
 // 移动构造
 GAGroup(GAGroup<R(Args...)>&& other);
+// 禁用赋值函数
+GAGroup<R(Args...)>& operator=(const GAGroup<R(Args...)>& other) = delete;
+GAGroup<R(Args...)>& operator=(GAGroup<R(Args...)>&& other) = delete;
 ```
 
 ## 析构函数
@@ -136,3 +139,27 @@ void wait_result();
 ```
 
 阻塞当前线程，等待优化结果。
+
+```cpp
+void pause();
+```
+
+暂停迭代(为保证数据一致性，需在一次完整迭代后pause)。
+
+```cpp
+void proceed();
+```
+
+继续迭代。
+
+```cpp
+void kill();
+```
+
+结束迭代。
+
+```cpp
+GAGroup<R(Args...)> clone();
+```
+
+克隆当前种群

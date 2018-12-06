@@ -26,7 +26,7 @@ long double getSec(const Second& s)
 	return s.value;
 }
 
-// 测试用例，最优解(x,y) = (13,27)
+// 测试用例1，最优解(x,y) = (13,27)
 double test_Func(double x, double y)
 {
 	double a = sqrt((x - 13)*(x - 13) + (y - 27)*(y - 27)) + 2;
@@ -34,7 +34,7 @@ double test_Func(double x, double y)
 	return b * (50 - a);
 }
 
-// 测试用例，最优解(x,y) = (13,17)
+// 测试用例2，最优解(x,y) = (13,17)
 double test_Func2(double x, double y)
 {
 	return -0.2*((x - 13)*(x - 13) + (y - 17)*(y - 17)) + 21;
