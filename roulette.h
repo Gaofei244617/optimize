@@ -47,7 +47,7 @@ namespace opt
 		:mark_num(other.mark_num),
 		tick_mark(new T[mark_num]())
 	{
-		for (int i = 0; i < mark_num; i++)
+		for (std::size_t i = 0; i < mark_num; i++)
 		{
 			tick_mark[i] = other.tick_mark[i];
 		}
@@ -70,7 +70,7 @@ namespace opt
 		{
 			mark_num = other.mark_num;
 			tick_mark = new T[mark_num]();
-			for (int i = 0; i < mark_num; i++)
+			for (std::size_t i = 0; i < mark_num; i++)
 			{
 				tick_mark[i] = other.tick_mark[i];
 			}
