@@ -1,14 +1,16 @@
 #include <iostream>
 #include <cstdlib>
-#include "optimize.h"
 //#include <string>
 #include <vector>
 #include <utility>
 #include <cmath>
-#include "range_random.h"
-#include "opt_time.h"
 #include <chrono>
 #include <windows.h>
+
+#include "range_random.h"
+#include "opt_time.h"
+#include "optimize.h"
+
 
 ////////////////////////////////////////////////////////////////////////
 #include <string>
@@ -134,6 +136,8 @@ int main()
 
 	out_res(a);
 
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	auto pso = opt::createPSO(test_Func2, 500);
 	//////////////////////////////////////////////////////////////////////////////////////////////
 
 	std::cout << std::endl;

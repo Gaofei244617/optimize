@@ -9,11 +9,11 @@
 #include <thread>
 #include <functional>
 
-#include "individual.h"
+#include "ga_individual.h"
 #include "range_random.h"
 #include "roulette.h"
 #include "opt_time.h"
-#include "ga_GroupState.h"
+#include "ga_state.h"
 #include "cross_factor.h"
 #include "mutate_factor.h"
 #include "ga_thread_sync.h"
@@ -22,8 +22,6 @@
 
 ////////
 #include <iostream>
-
-#define FACTOR 0.6
 
 namespace opt
 {
@@ -39,10 +37,10 @@ namespace opt
 	private:
 		std::string name;                                                     // 种群名称
 		std::size_t groupSize;                                                // 初始种群个体数量，default = 1000；
-		std::size_t groupCapacity;                                            //
+		std::size_t groupCapacity;                                            // 
 		const std::size_t nVars;                                              // 适应度函数包含的变量个数
-		Individual* indivs;                                                   // 种群个体, 指向groupSize个个体数组(最后一个存放最优个体)
-		Individual* tempIndivs;                                               // 子代个体缓存区
+		GA_Individual* indivs;                                                // 种群个体, 指向groupSize个个体数组(最后一个存放最优个体)
+		GA_Individual* tempIndivs;                                            // 子代个体缓存区
 		R(*fitFunc)(Args...);                                                 // 适应度函数指针
 		std::function<void(const GA_Info&)> monitor;                          // 外部监听器
 		std::function<std::size_t(std::size_t)> resize;                       // 种群数量动态调整
@@ -50,12 +48,12 @@ namespace opt
 		Roulette<double> roulette;                                            // 轮盘赌对象
 		double mutateProb;                                                    // 个体变异概率,默认p = 0.1
 		double crossProb;                                                     // 个体交叉概率, 默认p = 0.6
-		std::vector<Individual> bestIndivs;                                   // 记录每次迭代的最优个体
+		std::vector<GA_Individual> bestIndivs;                                // 记录每次迭代的最优个体
 
 		std::vector<std::thread> vec_run;                                     // 交叉线程组
 		std::thread single_thread;                                            // 单线程
 
-		GA_GroupState group_state;                                            // 种群状态
+		GA_State group_state;                                                 // 种群状态
 		std::unique_ptr< GAThreadSync<R, Args...> > thread_sync;              // 线程同步器
 
 	public:
@@ -82,10 +80,10 @@ namespace opt
 		int getNVars()const;                                                  // 获取种群变量个数
 		int getGeneration()const;                                             // 获得当前种群代数
 		int getGroupSize()const;                                              // 获得当前种群个体数量
-		std::vector<Individual> getBestIndivs();                              // 获取历次迭代的最优解
+		std::vector<GA_Individual> getBestIndivs();                           // 获取历次迭代的最优解
 		int getStopCode();                                                    // 获取Stop Code
 
-		void initGroup(const std::vector<Individual>& indivs = std::vector<Individual>());    // 初始化种群个体
+		void initGroup(const std::vector<GA_Individual>& indivs = std::vector<GA_Individual>());    // 初始化种群个体
 		bool start();                                                         // 开始迭代进化
 		void pause();                                                         // 暂停(为保证数据一致性，需在一次完整迭代后pause)
 		void proceed();                                                       // 继续迭代
@@ -119,8 +117,8 @@ namespace opt
 		groupSize(size + size % 2),
 		groupCapacity(groupSize),
 		nVars(sizeof...(Args)),
-		indivs(new Individual[groupSize]),
-		tempIndivs(new Individual[groupSize]),
+		indivs(new GA_Individual[groupSize]),
+		tempIndivs(new GA_Individual[groupSize]),
 		fitFunc(f),
 		bound(nullptr),
 		roulette(groupSize + 1),
@@ -131,8 +129,8 @@ namespace opt
 	{
 		for (std::size_t i = 0; i < groupSize; i++)
 		{
-			indivs[i] = Individual(nVars);
-			tempIndivs[i] = Individual(nVars);
+			indivs[i] = GA_Individual(nVars);
+			tempIndivs[i] = GA_Individual(nVars);
 		}
 
 		// 变量区间
@@ -146,8 +144,8 @@ namespace opt
 		groupSize(other.groupSize),
 		groupCapacity(groupSize),
 		nVars(other.nVars),
-		indivs(new Individual[groupSize]),
-		tempIndivs(new Individual[groupSize]),
+		indivs(new GA_Individual[groupSize]),
+		tempIndivs(new GA_Individual[groupSize]),
 		fitFunc(other.fitFunc),
 		monitor(other.monitor),
 		resize(other.resize),
@@ -366,7 +364,7 @@ namespace opt
 
 	// 获取历次迭代的最优解
 	template<class R, class... Args>
-	std::vector<Individual> GAGroup<R(Args...)>::getBestIndivs()
+	std::vector<GA_Individual> GAGroup<R(Args...)>::getBestIndivs()
 	{
 		return bestIndivs;
 	}
@@ -614,7 +612,7 @@ namespace opt
 	/******************************************* Private Functions *****************************************************/
 	// 初始化种群
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::initGroup(const std::vector<Individual>& init_indivs)
+	void GAGroup<R(Args...)>::initGroup(const std::vector<GA_Individual>& init_indivs)
 	{
 		// 初始化前需要保证已设置基因变量区间
 		if (group_state.setBoundFlag)
@@ -808,7 +806,7 @@ namespace opt
 	void GAGroup<R(Args...)>::switchIndivArray()
 	{
 		// 交换子代个体缓存区和父代个体存放区的指针
-		Individual* temp = indivs;
+		GA_Individual* temp = indivs;
 		indivs = tempIndivs;
 		tempIndivs = temp;
 	}
