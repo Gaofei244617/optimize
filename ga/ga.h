@@ -433,7 +433,7 @@ namespace opt
 			select(0);                        // 环境选择
 			updateStopState();                // 更新停止状态
 
-			//// 调用外部监听函数
+			// 调用外部监听函数
 			if (monitor)
 			{
 				GA_Info ga_info(group_state.time, group_state.nGene, bestIndivs.back());
@@ -478,7 +478,7 @@ namespace opt
 				std::unique_lock<std::mutex> lck(thread_sync->mtx);
 				thread_sync->cv.wait(lck, [this, &seq]() {
 					return !(this->thread_sync->mut_flag[seq]) && this->thread_sync->mutReady;
-				});
+					});
 			}
 
 			/////////////////////////////// Mutate /////////////////////////////////////////////////////
@@ -494,7 +494,7 @@ namespace opt
 				std::unique_lock<std::mutex> lck(thread_sync->mtx);
 				thread_sync->cv.wait(lck, [this, &seq]() {
 					return !(this->thread_sync->sel_flag[seq]) && this->thread_sync->selectReady;
-				});
+					});
 			}
 
 			/////////////////////////////// Select /////////////////////////////////////////////////////
@@ -528,7 +528,7 @@ namespace opt
 				std::unique_lock<std::mutex> lck(thread_sync->mtx);
 				thread_sync->cv.wait(lck, [this, &seq]() {
 					return !(this->thread_sync->cross_flag[seq]) && this->thread_sync->crossReady && !(this->group_state.sleep.signal);
-				});
+					});
 			}
 
 			if (group_state.stopFlag == true) { return; }
@@ -621,6 +621,7 @@ namespace opt
 			for (std::size_t i = 0; i < init_indivs.size(); i++)
 			{
 				indivs[i] = init_indivs[i];
+				indivs[i].fitness = callFitFunc(indivs[i].vars, opt::make_index_seq<sizeof...(Args)>());
 			}
 			for (std::size_t i = init_indivs.size(); i < groupSize; i++)
 			{

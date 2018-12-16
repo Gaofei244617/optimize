@@ -8,6 +8,7 @@
 #include "pso_state.h"
 #include "index_seq.h"
 #include "pso_info.h"
+#include "range_random.h"
 
 namespace opt
 {
@@ -22,12 +23,13 @@ namespace opt
 	private:
 		std::size_t groupSize;                                                // 粒子数量
 		std::size_t nVars;                                                    // 适应度函数包含的变量个数
-		PSO_Individual* indivs;                                               // 粒子个体
+		PSO_Individual* indivs;                                               // 粒子群数组
 		R(*fitFunc)(Args...);                                                 // 适应度函数指针
-		std::function<std::size_t(std::size_t)> reweight;                     // 种群数量动态调整
+		std::function<double(std::size_t)> reweight;                          // 种群数量动态调整
 		std::function<void(const PSO_Info&)> monitor;                         // 外部监听器
 		double(*bound)[2];                                                    // 每个变量的区间, 以数组指针表示
 		std::vector<PSO_Individual> bestIndivs;                               // 记录每次迭代的最优个体
+		PSO_Individual best_indiv;                                            // 最优粒子
 		PSO_State group_state;                                                // 粒子群状态
 
 	public:
@@ -62,6 +64,11 @@ namespace opt
 	private:
 		template<std::size_t... I>
 		R callFitFunc(double* args, const opt::index_seq<I...>&);              // 调用适应度函数数
+
+		std::size_t findBest();                                                // 寻找最优个体
+		void iter();                                                           // 进行一次迭代
+		void updateStopState();                                                // 更新粒子群停止状态
+		void run();
 	};
 
 	/******************************************* 构造与析构 ***********************************************************/
@@ -72,6 +79,7 @@ namespace opt
 		nVars(sizeof...(Args)),
 		indivs(new PSO_Individual[groupSize]),
 		fitFunc(f),
+		reweight([](std::size_t n) {return 0.5; }),
 		bound(nullptr)
 	{
 		for (std::size_t i = 0; i < groupSize; i++)
@@ -142,7 +150,7 @@ namespace opt
 		delete[] indivs;
 		delete[] bound;
 	}
-	
+
 	/**************************************** Setter ************************************************************/
 	// 设置所有变量区间,传入初始化列表
 	template<class R, class... Args>
@@ -244,6 +252,194 @@ namespace opt
 		return group_state.stopCode;
 	}
 
+	// 初始化粒子群
+	template<class R, class... Args>
+	void PSO<R(Args...)>::initGroup(const std::vector<PSO_Individual>& init_indivs)
+	{
+		// 初始化前需要保证已设置基因变量区间
+		if (group_state.setBoundFlag)
+		{
+			// 1.初始化每一个粒子
+			for (std::size_t i = 0; i < init_indivs.size(); i++)
+			{
+				indivs[i] = init_indivs[i];
+				indivs[i].fitness = callFitFunc(indivs[i].xs, opt::make_index_seq<sizeof...(Args)>());
+			}
+			for (std::size_t i = init_indivs.size(); i < groupSize; i++)
+			{
+				// 设置个体位置
+				for (std::size_t j = 0; j < nVars; j++)
+				{
+					indivs[i].xs[j] = random_real(bound[j][0], bound[j][1]);
+					indivs[i].best_xs[j] = indivs[i].xs[j];
+				}
+				// 个体适应度
+				indivs[i].fitness = callFitFunc(indivs[i].xs, opt::make_index_seq<sizeof...(Args)>());
+			}
+
+			// 2.寻找最优个体
+			std::size_t bestIndex = this->findBest();
+			bestIndivs.push_back(indivs[bestIndex]);                     // 记录最优解
+			best_indiv = indivs[bestIndex];                              // 最优个体
+
+			// 3.设置粒子飞行速度			
+			double c2 = 2;   // 学习因子
+
+			// 计算各个粒子飞行速度，初始化粒子速度没有惯性部分和自身部分，只有社会部分
+			for (int i = 0; i < groupSize; i++)
+			{
+				// 随机数
+				double r2 = opt::random_real(0, 1);
+				for (int j = 0; j < nVars; j++)
+				{
+					indivs[i].vs[j] = c2 * r2 * (indivs[bestIndex].xs[j] - indivs[i].xs[j]);
+
+					// 最大飞行速度
+					double V_max = 0.15 * (bound[j][1] - bound[j][0]);
+
+					// 检查速度是否过大
+					if (indivs[i].vs[j] > V_max)
+					{
+						indivs[i].vs[j] = V_max;
+					}
+					if (indivs[i].vs[j] < -V_max)
+					{
+						indivs[i].vs[j] = -V_max;
+					}
+				}
+			}
+
+			// 4.设置初始化标志位
+			group_state.initFlag = true;
+		}
+		else
+		{
+			throw std::string("Fitness function or variables boundary is not set.");
+		}
+	}
+
+	// 寻找最优个体
+	template<class R, class ...Args>
+	std::size_t PSO<R(Args...)>::findBest()
+	{
+		std::size_t index = 0;
+		for (std::size_t i = 1; i < groupSize; i++)
+		{
+			if (indivs[i].fitness > indivs[index].fitness)
+			{
+				index = i;
+			}
+		}
+		return index;
+	}
+
+	// 进行一次迭代
+	template<class R, class ...Args>
+	void PSO<R(Args...)>::iter()
+	{
+		double weight = reweight(group_state.nGene + 1);         // 惯性系数
+
+		double c1 = 1.49618;                                     // 学习因子
+		double c2 = 1.49618;
+
+		double r1 = 0.5;
+		double r2 = 0.5;
+
+		double V_max = 0;                                        // 最大飞行速度
+
+		double temp = 0;
+		double temp_1 = 0;
+		double temp_2 = 0;
+		double temp_3 = 0;
+
+		// 更新速度
+		for (int j = 0; j < nVars; j++)
+		{
+			V_max = 0.15 * (bound[j][1] - bound[j][0]);
+
+			for (int i = 0; i < groupSize; i++)
+			{
+				r1 = opt::random_real(0, 1);
+				r2 = opt::random_real(0, 1);
+
+				temp_1 = weight * indivs[i].vs[j];                                // 惯性部分
+				temp_2 = c1 * r1 * (indivs[i].best_xs[j] - indivs[i].xs[j]);      // 自我部分
+				temp_3 = c2 * r2 * (best_indiv.xs[j] - indivs[i].xs[j]);          // 社会部分
+
+				temp = temp_1 + temp_2 + temp_3;                                  // 飞行速度
+
+				if (temp > V_max)
+				{
+					temp = V_max;
+				}
+				if (temp < -V_max)
+				{
+					temp = -V_max;
+				}
+
+				// 更新位置
+				indivs[i].xs[j] = indivs[i].xs[j] + indivs[i].vs[j];
+				if (indivs[i].xs[j] < bound[j][0])
+				{
+					indivs[i].xs[j] = bound[j][0];
+				}
+				if (indivs[i].xs[j] > bound[j][1])
+				{
+					indivs[i].xs[j] = bound[j][1];
+				}
+				// 更新速度
+				indivs[i].vs[j] = temp;
+			}
+		}
+
+		// 更新粒子适应度
+		for (int i = 0; i < groupSize; i++)
+		{
+			indivs[i].fitness = callFitFunc(indivs[i].xs, opt::make_index_seq<sizeof...(Args)>());
+			double best_fit = callFitFunc(indivs[i].best_xs, opt::make_index_seq<sizeof...(Args)>());
+			if (indivs[i].fitness > best_fit)
+			{
+				for (int j = 0; j < nVars; j++)
+				{
+					indivs[i].best_xs[j] = indivs[i].xs[j];
+				}
+			}
+		}
+
+		std::size_t bestIndex = this->findBest();                    // 寻找当前粒子群最优个体
+		bestIndivs.push_back(indivs[bestIndex]);                     // 记录最优解
+
+		if (indivs[bestIndex].fitness > best_indiv.fitness)          // 最优个体体
+		{
+			best_indiv = indivs[bestIndex];
+		}
+	}
+
+	// 更新粒子群停止状态
+	template<class R, class ...Args>
+	void PSO<R(Args...)>::updateStopState()
+	{
+		// 迭代次数加一
+		group_state.nGene++;
+
+		// 记录当前时间
+		group_state.nowTime = std::chrono::steady_clock::now();
+
+		// 是否达到最大迭代时间
+		std::chrono::duration<double> evolTime = group_state.nowTime - group_state.startTime;
+		group_state.time = evolTime.count(); // 秒
+
+		// 判断最优个体fitness值较上一代的波动情况
+		if (abs(bestIndivs[group_state.nGene - 1].fitness - bestIndivs[group_state.nGene].fitness) <= group_state.stopTol)
+		{
+			group_state.count++;
+		}
+		else
+		{
+			group_state.count = 0;
+		}
+	}
+
 	// 调用适应度函数
 	template<class R, class... Args>
 	template<std::size_t... I>
@@ -251,7 +447,6 @@ namespace opt
 	{
 		return fitFunc(args[I]...);
 	}
-
 }
 
 #endif
