@@ -16,7 +16,7 @@ $D$维空间有$N$个粒子：
 
 ## 粒子$i$的第$d$维速度更新公式(标准PSO)：
 
-$ v_{id}^{k}=wv_{id}^{k-1}+c_1r_{1d}\left(p_{id}-x_{id}^{k-1}\right)+c_2r_{2d}\left(g_d-x_{id}^{k-1}\right), i \in [1,N], d \in [1,D]$
+$ v_{id}^{k}=wv_{id}^{k-1}+c_1r_{1d}\left(p_{id}-x_{id}^{k-1}\right)+c_2r_{2d}\left(g_d-x_{id}^{k-1}\right), 其中i \in [1,N], d \in [1,D]$
 
 ## 粒子$i$的第$d$维位置更新公式：
 

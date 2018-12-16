@@ -1,165 +1,77 @@
-# GA类：GAGroup
+## 遗传算法（Genetic Algorithm，GA）
+遗传算法（Genetic Algorithm）基本思想是通过模拟自然进化过程搜索最优解，是一种通过模拟达尔文生物进化论的自然选择和遗传学机理的计算模型。遗传算法有$3$个最基本的操作：**选择，交叉，变异。**
 
-## 类定义
+**算法流程：**
+* **$1.$初始化：** 设置迭代停止条件，随机生成$N$个个体作为初始群体$P(0)$。
+* **$2.$个体评价：** 计算群体$P(t)$中各个个体的适应度。
+* **$3.$选择运算：** 将选择算子作用于群体。选择的目的是把优化的个体直接遗传到下一代或通过配对交叉产生新的个体再遗传到下一代。选择操作是建立在群体中个体的适应度评估基础上的。
+* **$4.$交叉运算：** 将交叉算子作用于群体。遗传算法中起核心作用的就是交叉算子。
+* **$5.$变异运算：** 将变异算子作用于群体。即是对群体中的个体串的某些基因座上的基因值作变动。群体$P(t)$经过选择、交叉、变异运算之后得到下一代群体$P(t+1)$。
+* **$6.$终止条件判断：** 判断是否达到停止条件，若达到，终止计算，否则转到第$2$步。
 
-```cpp
-namespace opt
-{
-    template<class F> class GAGroup; // 无具体实现
-    template<class R, class... Args> class GAGroup<R(Args...)>;  // 使用适应度函数偏特化GAGroup
-}
-```
+**适应度函数的重要性：** 适应度函数的选取直接影响遗传算法的**收敛速度**以及能否找到最优解。一般而言，适应度函数是由目标函数变换而成的，对目标函数值域的某种映射变换称为适应度的**尺度变换**（fitness scaling）。
 
-## 构造函数
+**适应度函数设计不当有可能出现欺骗问题：** 
+* **$1$** 进化初期，个别超常个体控制选择过程；
+* **$2$** 进化末期，个体差异太小导致陷入局部极值。
 
-```cpp
-// 构造函数，f:适应度函数,size:个体数量
-GAGroup(R(*f)(Args...), const int size = 1000);
-// 拷贝构造
-GAGroup(const GAGroup<R(Args...)>& other);  
-// 移动构造
-GAGroup(GAGroup<R(Args...)>&& other);
-// 禁用赋值函数
-GAGroup<R(Args...)>& operator=(const GAGroup<R(Args...)>& other) = delete;
-GAGroup<R(Args...)>& operator=(GAGroup<R(Args...)>&& other) = delete;
-```
+### 1.交叉（Crossover）
 
-## 析构函数
+#### SBX交叉算子(模拟二进制单点交叉)
+$p_1、p_2$为父代基因，$c_1、c_2$为子代基因, 一对父代基因交叉产生两个子代基因。
 
-```cpp
-~GAGroup();
-```
+$
+\begin{cases}
+c_1=\dfrac{1}{2}\left[(1+\beta)p_1+(1-\beta)p_2 \right]
+\cr \cr
+c_2=\dfrac{1}{2}\left[(1-\beta)p_1+(1+\beta)p_2 \right]
+\end{cases}
+$
 
-## 成员函数
+式中$\beta$为**均匀分布因子**。
 
-### (1) 设置种群参数
+其中，$
+\beta=\begin{cases}
+(2u)^{\frac{1}{\eta_c+1}}, &u\leq 0.5
+\cr \left[\dfrac{1}{2(1-u)}\right]^{\frac{1}{\eta_c+1}}, &u > 0.5
+\end{cases}
+$
 
-```cpp
-void setName(const std::string& str);
-```
+$u$是一个位于$[0,1]$区间内的随机数，$\eta_c$为**交叉分布指数**（大于$0$），推荐为$1$，$\eta_c$越大，子代个体离父代越远。
 
-设置种群名称。
+以上公式满足：$p_1+p_2=c_1+c_2$，$\beta=\left|\dfrac{c_2-c_1}{p_2-p_1}\right|$
 
-```cpp
-void setBoundary(double(*b)[2]);
-```
+### 2.变异（Mutation）
 
-设置变量区间。
+#### 多项式变异
 
- ```cpp
-void setBoundary(const GenBound& b);
-```
+多项式变异，其变异算子形式是：
 
-设置变量区间。
+$v_{k}^{\prime}=v_{k}+\delta(u_{k}-l_{k})$
 
- ```cpp
-void setMaxGeneration(const unsigned int N);
-```
+$v_k$表示一个父个体，$u_k$为基因上限，$l_k$为基因下限。其中：
 
-设置最大迭代次数。
+$
+\delta=\begin{cases}
+\left[2u+(1-2u)(1-\delta_1)^{\eta_m+1}\right]^{\frac{1}{\eta_m+1}}, &u\leq 0.5
+\cr 
+1-\left[2(1-u)+2(u-0.5)(1-\delta_2)^{\eta_m+1}\right]^{\frac{1}{\eta_m+1}}, &u > 0.5
+\end{cases}
+$
 
-```cpp
-void setMaxRuntime(const Second& time);
-```
+式中$\delta_1=\dfrac{v_k-l_k}{u_k-l_k}$，$\delta_2=\dfrac{u_k-v_k}{u_k-l_k}$，$u$是一个位于$[0,1]$区间内的随机数，$\eta_m$是分布指数，推荐为$1$。
 
-设置最大运行时间（秒）。
+### 3.选择（Selection）
 
-```cpp
-void setStopTol(long double t, unsigned int N = 5);
-```
+#### 轮盘赌选择
+又称比例选择方法。其基本思想是：各个个体被选中的概率与其适应度大小成正比，个体适应度越高，被选中的概率越大。
 
-设置最优解停止误差。
-
-```cpp
-void setMutateProb(double p);
-```
-
-设置基因变异概率。
-
-```cpp
-void setCrossProb(double p);
-```
-
-设置交叉概率。
-
-```cpp
-void setThreadNum(const int NUM);
-```
-
-设置并行计算的线程数，default=1。
-
-### (2) 获取种群参数
-
-```cpp
-const std::string getName()const;
-```
-
-获取种群名称。
-
-```cpp
-int getNVars()const;
-```
-
-获取种群变量个数。
-
-```cpp
-int getGeneration()const;
-```
-
-获得当前种群代数。
-
-```cpp
-int getGroupSize()const;
-```
-
-获得当前种群个体数量。
-
-```cpp
-std::vector<Individual> getBestIndivs();
-```
-
-获取历次迭代的最优解。
-
-```cpp
-int getStopCode();
-```
-
-获取Stop Code。
-
-### (3) 用户函数
-
-```cpp
-bool start();
-```
-
-开启迭代进化过程。
-
-```cpp
-void wait_result();
-```
-
-阻塞当前线程，等待优化结果。
-
-```cpp
-void pause();
-```
-
-暂停迭代(为保证数据一致性，需在一次完整迭代后pause)。
-
-```cpp
-void proceed();
-```
-
-继续迭代。
-
-```cpp
-void kill();
-```
-
-结束迭代。
-
-```cpp
-GAGroup<R(Args...)> clone();
-```
-
-克隆当前种群
+**具体操作如下：**
+* **$1.$** 计算出群体中每个个体的适应度$f(x_i)(i=1,2,...,N)$，$N$为群体大小；
+* **$2.$** 计算出每个个体被遗传到下一代群体中的概率；
+$$P(x_i)=\frac{f(x_i)}{\sum\limits_{j=1}^{N}f(x_j)}$$
+* **$3.$** 计算出每个个体的累积概率（$q_i$称为个体$x_i$的累积概率）；
+$$q_i=\sum_{j=1}^{i}P(x_j)$$
+* **$4.$** 在$[0,1]$区间内产生一个均匀分布的随机数$r$；
+* **$5.$** 若$r<q_1$，则选择个体$1$，否则，选择个体$k$，使得$q_{k-1}<r≤q_{k}$ 成立；
+* **$6.$** 重复步骤$4、5$共$N$次
