@@ -1,4 +1,4 @@
-#ifndef _PSO_STATE_H_
+ï»¿#ifndef _PSO_STATE_H_
 #define _PSO_STATE_H_
 
 #include <chrono>
@@ -7,40 +7,33 @@
 
 namespace opt
 {
-	//struct SleepFlag
-	//{
-	//	bool signal;
-	//	bool result;
-	//	SleepFlag() :signal(false), result(false) {}
-	//};
-
-	// Á£×Ó×´Ì¬±ê£¨Ëæ×Åµü´ú¹ı³Ì¿ÉÄÜ·¢Éú±ä»¯£©
+	// ç²’å­çŠ¶æ€æ ‡ï¼ˆéšç€è¿­ä»£è¿‡ç¨‹å¯èƒ½å‘ç”Ÿå˜åŒ–ï¼‰
 	struct PSO_State
 	{
-		long double stopTol;                                                  // Í£Ö¹µü´úÎó²î
-		unsigned int maxGene;                                                 // ×î´óµü´ú´ÎÊı
-		unsigned int converCount;                                             // Í£Ö¹µü´úµÄÊÕÁ²´ÎÊı
-		Second maxRuntime;                                                    // ×î´óµü´úÊ±¼ä(Ãë)
+		long double stopTol;                                                  // åœæ­¢è¿­ä»£è¯¯å·®
+		unsigned int maxGene;                                                 // æœ€å¤§è¿­ä»£æ¬¡æ•°
+		unsigned int converCount;                                             // åœæ­¢è¿­ä»£çš„æ”¶æ•›æ¬¡æ•°
+		Second maxRuntime;                                                    // æœ€å¤§è¿­ä»£æ—¶é—´(ç§’)
 
-		bool setBoundFlag;                                                    // ÊÇ·ñÉèÖÃ±äÁ¿Çø¼ä
-		bool setRuntimeFlag;                                                  // ÊÇ·ñÉèÖÃ×î´óÔËĞĞÊ±¼ä
-		bool setStopTolFlag;                                                  // ÊÇ·ñÉèÖÃÍ£Ö¹Îó²î
-		bool setMaxGeneFlag;                                                  // ÊÇ·ñÉèÖÃ×î´óµü´ú´ÎÊı
+		bool setBoundFlag;                                                    // æ˜¯å¦è®¾ç½®å˜é‡åŒºé—´
+		bool setRuntimeFlag;                                                  // æ˜¯å¦è®¾ç½®æœ€å¤§è¿è¡Œæ—¶é—´
+		bool setStopTolFlag;                                                  // æ˜¯å¦è®¾ç½®åœæ­¢è¯¯å·®
+		bool setMaxGeneFlag;                                                  // æ˜¯å¦è®¾ç½®æœ€å¤§è¿­ä»£æ¬¡æ•°
 
-		bool initFlag;                                                        // ÊÇ·ñ³õÊ¼»¯Á£×ÓÈº
-		bool stopFlag;                                                        // µü´úÍ£Ö¹±êÖ¾, true:´ïµ½Í£Ö¹Ìõ¼ş, false:Î´´ïµ½Í£Ö¹Ìõ¼ş
-		//SleepFlag sleep;                                                      //
-		std::atomic<short> stopCode;                                          // µü´úÍ£Ö¹Ô­Òò,-1-Î´¿ªÊ¼µü´ú; 0-ÕıÔÚµü´ú; 1-´ïµ½×î´óµü´ú´ÎÊı; 2-´ïµ½×î´óµü´úÊ±¼ä; 3-×îÓÅ½âÊÕÁ²ÓÚÎÈ¶¨Öµ; 4-ÈËÎªÍ£Ö¹µü´ú
-		unsigned int count;                                                   // ×îÓÅ½â²¨¶¯Á¬ĞøĞ¡ÓÚÍ£Ö¹Îó²îµÄ´ÎÊı, ²¨¶¯ÖµÁ¬Ğø5´ÎĞ¡ÓÚÍ£Ö¹Îó²î¼´Í£Ö¹µü´ú
+		bool initFlag;                                                        // æ˜¯å¦åˆå§‹åŒ–ç²’å­ç¾¤
+		bool stopFlag;                                                        // è¿­ä»£åœæ­¢æ ‡å¿—, true:è¾¾åˆ°åœæ­¢æ¡ä»¶, false:æœªè¾¾åˆ°åœæ­¢æ¡ä»¶
+		SleepFlag sleep;                                                      //
+		std::atomic<short> stopCode;                                          // è¿­ä»£åœæ­¢åŸå› ,-1-æœªå¼€å§‹è¿­ä»£; 0-æ­£åœ¨è¿­ä»£; 1-è¾¾åˆ°æœ€å¤§è¿­ä»£æ¬¡æ•°; 2-è¾¾åˆ°æœ€å¤§è¿­ä»£æ—¶é—´; 3-æœ€ä¼˜è§£æ”¶æ•›äºç¨³å®šå€¼; 4-äººä¸ºåœæ­¢è¿­ä»£
+		unsigned int count;                                                   // æœ€ä¼˜è§£æ³¢åŠ¨è¿ç»­å°äºåœæ­¢è¯¯å·®çš„æ¬¡æ•°, æ³¢åŠ¨å€¼è¿ç»­5æ¬¡å°äºåœæ­¢è¯¯å·®å³åœæ­¢è¿­ä»£
 
-		unsigned int nGene;                                                   // µ±Ç°Á£×ÓÈº´úÊı
-		std::chrono::time_point<std::chrono::steady_clock> startTime;         // ¿ªÊ¼µü´úµÄÊ±¼äµã
-		std::chrono::time_point<std::chrono::steady_clock> nowTime;           // µ±Ç°µü´úµÄÊ±¼äµã
-		double time;                                                          // Á£×ÓÈºµü´úÊ±¼ä£ºÃë
-		//int worstIndex;                                                       // ÊÊÓ¦¶È×î²îµÄ¸öÌåÎ»ÖÃ
-		//int bestIndex;                                                        // ÊÊÓ¦¶È×îºÃµÄ¸öÌåÎ»ÖÃ
+		unsigned int nGene;                                                   // å½“å‰ç²’å­ç¾¤ä»£æ•°
+		std::chrono::time_point<std::chrono::steady_clock> startTime;         // å¼€å§‹è¿­ä»£çš„æ—¶é—´ç‚¹
+		std::chrono::time_point<std::chrono::steady_clock> nowTime;           // å½“å‰è¿­ä»£çš„æ—¶é—´ç‚¹
+		double time;                                                          // ç²’å­ç¾¤è¿­ä»£æ—¶é—´ï¼šç§’
+		//int worstIndex;                                                       // é€‚åº”åº¦æœ€å·®çš„ä¸ªä½“ä½ç½®
+		//int bestIndex;                                                        // é€‚åº”åº¦æœ€å¥½çš„ä¸ªä½“ä½ç½®
 
-		/* ¹¹Ôìº¯Êı*/
+		/* æ„é€ å‡½æ•°*/
 		PSO_State()
 			:stopTol(0),
 			maxGene(0),
@@ -52,7 +45,7 @@ namespace opt
 			setMaxGeneFlag(false),
 			initFlag(false),
 			stopFlag(false),
-			//sleep(),
+			sleep(),
 			stopCode(-1),
 			count(0),
 			nGene(0),
@@ -61,7 +54,7 @@ namespace opt
 			//bestIndex(0)
 		{}
 
-		// ¸´ÖÆ¹¹Ôì
+		// å¤åˆ¶æ„é€ 
 		PSO_State(const PSO_State& other)
 			:stopTol(other.stopTol),
 			maxGene(other.maxGene),
@@ -73,7 +66,7 @@ namespace opt
 			setMaxGeneFlag(other.setMaxGeneFlag),
 			initFlag(other.initFlag),
 			stopFlag(other.stopFlag),
-			//sleep(other.sleep),
+			sleep(other.sleep),
 			stopCode(other.stopCode.load()),
 			count(other.count),
 			nGene(other.nGene),
@@ -82,7 +75,7 @@ namespace opt
 			//bestIndex(other.bestIndex)
 		{}
 
-		// ¸³Öµº¯Êı
+		// èµ‹å€¼å‡½æ•°
 		PSO_State& operator=(const PSO_State& other)
 		{
 			if (this != &other)
@@ -97,7 +90,7 @@ namespace opt
 				setMaxGeneFlag = other.setMaxGeneFlag;
 				initFlag = other.initFlag;
 				stopFlag = other.stopFlag;
-				//sleep = other.sleep;
+				sleep = other.sleep;
 				stopCode = other.stopCode.load();
 				count = other.count;
 				nGene = other.nGene;
@@ -109,8 +102,8 @@ namespace opt
 			return *this;
 		}
 
-		// ÅĞ¶ÏÁ£×ÓÈºÊÇ·ñ´¦ÓÚ¿Éµü´ú×´Ì¬
-		// ¿Éµü´úÌõ¼ş: (1)ÉèÖÃÁË±äÁ¿Çø¼ä(2)ÇÒÍê³ÉÁ£×ÓÈº³õÊ¼»¯(3)ÇÒÖÁÉÙÉèÖÃÁË×î´óÔËĞĞÊ±¼ä¡¢Í£Ö¹Îó²î¡¢×î´óµü´ú´ÎÊıÖ®Ò»
+		// åˆ¤æ–­ç²’å­ç¾¤æ˜¯å¦å¤„äºå¯è¿­ä»£çŠ¶æ€
+		// å¯è¿­ä»£æ¡ä»¶: (1)è®¾ç½®äº†å˜é‡åŒºé—´(2)ä¸”å®Œæˆç²’å­ç¾¤åˆå§‹åŒ–(3)ä¸”è‡³å°‘è®¾ç½®äº†æœ€å¤§è¿è¡Œæ—¶é—´ã€åœæ­¢è¯¯å·®ã€æœ€å¤§è¿­ä»£æ¬¡æ•°ä¹‹ä¸€
 		bool runable()
 		{
 			return setBoundFlag && initFlag && (setRuntimeFlag || setStopTolFlag || setMaxGeneFlag);

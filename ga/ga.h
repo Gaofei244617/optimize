@@ -1,4 +1,4 @@
-#ifndef _Genetic_Algorithm_
+ï»¿#ifndef _Genetic_Algorithm_
 #define _Genetic_Algorithm_
 
 #include <string>
@@ -27,7 +27,7 @@ namespace opt
 {
 	template<class F> class GAGroup;
 
-	// GAÖÖÈºÀà£¬ĞèÌá¹©ÊÊÓ¦¶Èº¯ÊıÀàĞÍ
+	// GAç§ç¾¤ç±»ï¼Œéœ€æä¾›é€‚åº”åº¦å‡½æ•°ç±»å‹
 	template<class R, class... Args>
 	class GAGroup<R(Args...)>
 	{
@@ -35,82 +35,82 @@ namespace opt
 		friend class GAThreadSync<R, Args...>;
 
 	private:
-		std::string name;                                                     // ÖÖÈºÃû³Æ
-		std::size_t groupSize;                                                // ³õÊ¼ÖÖÈº¸öÌåÊıÁ¿£¬default = 1000£»
+		std::string name;                                                     // ç§ç¾¤åç§°
+		std::size_t groupSize;                                                // åˆå§‹ç§ç¾¤ä¸ªä½“æ•°é‡ï¼Œdefault = 1000ï¼›
 		std::size_t groupCapacity;                                            // 
-		const std::size_t nVars;                                              // ÊÊÓ¦¶Èº¯Êı°üº¬µÄ±äÁ¿¸öÊı
-		GA_Individual* indivs;                                                // ÖÖÈº¸öÌå, Ö¸ÏògroupSize¸ö¸öÌåÊı×é(×îºóÒ»¸ö´æ·Å×îÓÅ¸öÌå)
-		GA_Individual* tempIndivs;                                            // ×Ó´ú¸öÌå»º´æÇø
-		R(*fitFunc)(Args...);                                                 // ÊÊÓ¦¶Èº¯ÊıÖ¸Õë
-		std::function<void(const GA_Info&)> monitor;                          // Íâ²¿¼àÌıÆ÷
-		std::function<std::size_t(std::size_t)> resize;                       // ÖÖÈºÊıÁ¿¶¯Ì¬µ÷Õû
-		double(*bound)[2];                                                    // Ã¿¸ö±äÁ¿(»ùÒò)µÄÇø¼ä, ÒÔÊı×éÖ¸Õë±íÊ¾
-		Roulette<double> roulette;                                            // ÂÖÅÌ¶Ä¶ÔÏó
-		double mutateProb;                                                    // ¸öÌå±äÒì¸ÅÂÊ,Ä¬ÈÏp = 0.1
-		double crossProb;                                                     // ¸öÌå½»²æ¸ÅÂÊ, Ä¬ÈÏp = 0.6
-		std::vector<GA_Individual> bestIndivs;                                // ¼ÇÂ¼Ã¿´Îµü´úµÄ×îÓÅ¸öÌå
+		const std::size_t nVars;                                              // é€‚åº”åº¦å‡½æ•°åŒ…å«çš„å˜é‡ä¸ªæ•°
+		GA_Individual* indivs;                                                // ç§ç¾¤ä¸ªä½“, æŒ‡å‘groupSizeä¸ªä¸ªä½“æ•°ç»„(æœ€åä¸€ä¸ªå­˜æ”¾æœ€ä¼˜ä¸ªä½“)
+		GA_Individual* tempIndivs;                                            // å­ä»£ä¸ªä½“ç¼“å­˜åŒº
+		R(*fitFunc)(Args...);                                                 // é€‚åº”åº¦å‡½æ•°æŒ‡é’ˆ
+		std::function<void(const GA_Info&)> monitor;                          // å¤–éƒ¨ç›‘å¬å™¨
+		std::function<std::size_t(std::size_t)> resize;                       // ç§ç¾¤æ•°é‡åŠ¨æ€è°ƒæ•´
+		double(*bound)[2];                                                    // æ¯ä¸ªå˜é‡(åŸºå› )çš„åŒºé—´, ä»¥æ•°ç»„æŒ‡é’ˆè¡¨ç¤º
+		Roulette<double> roulette;                                            // è½®ç›˜èµŒå¯¹è±¡
+		double mutateProb;                                                    // ä¸ªä½“å˜å¼‚æ¦‚ç‡,é»˜è®¤p = 0.1
+		double crossProb;                                                     // ä¸ªä½“äº¤å‰æ¦‚ç‡, é»˜è®¤p = 0.6
+		std::vector<GA_Individual> bestIndivs;                                // è®°å½•æ¯æ¬¡è¿­ä»£çš„æœ€ä¼˜ä¸ªä½“
 
-		std::vector<std::thread> vec_run;                                     // ½»²æÏß³Ì×é
-		std::thread single_thread;                                            // µ¥Ïß³Ì
+		std::vector<std::thread> vec_run;                                     // äº¤å‰çº¿ç¨‹ç»„
+		std::thread single_thread;                                            // å•çº¿ç¨‹
 
-		GA_State group_state;                                                 // ÖÖÈº×´Ì¬
-		std::unique_ptr< GAThreadSync<R, Args...> > thread_sync;              // Ïß³ÌÍ¬²½Æ÷
+		GA_State group_state;                                                 // ç§ç¾¤çŠ¶æ€
+		std::unique_ptr< GAThreadSync<R, Args...> > thread_sync;              // çº¿ç¨‹åŒæ­¥å™¨
 
 	public:
-		GAGroup(R(*f)(Args...), const std::size_t size = 1000);               // ¹¹Ôìº¯Êı£¬¹¹ÔìÒ»¸öÖÖÈº£¬ĞèÌá¹©ÊÊÓ¦¶Èº¯Êı¼°ÖÖÈºÊıÁ¿
-		GAGroup(GAGroup<R(Args...)>& other);                                  // ¿½±´¹¹Ôì
-		GAGroup(GAGroup<R(Args...)>&& other);                                 // ÒÆ¶¯¹¹Ôì
+		GAGroup(R(*f)(Args...), const std::size_t size = 1000);               // æ„é€ å‡½æ•°ï¼Œæ„é€ ä¸€ä¸ªç§ç¾¤ï¼Œéœ€æä¾›é€‚åº”åº¦å‡½æ•°åŠç§ç¾¤æ•°é‡
+		GAGroup(GAGroup<R(Args...)>& other);                                  // æ‹·è´æ„é€ 
+		GAGroup(GAGroup<R(Args...)>&& other);                                 // ç§»åŠ¨æ„é€ 
 		GAGroup<R(Args...)>& operator=(const GAGroup<R(Args...)>& other) = delete;
 		GAGroup<R(Args...)>& operator=(GAGroup<R(Args...)>&& other) = delete;
 		~GAGroup();
 
-		void setName(const std::string& str);                                 // ÉèÖÃÖÖÈºÃû³Æ
-		void setBoundary(double(*b)[2]);                                      // ÉèÖÃ±äÁ¿Çø¼ä
-		void setBoundary(const GenBound& b);                                  // ÉèÖÃ±äÁ¿Çø¼ä
-		void setMaxGeneration(const unsigned int N);                          // ÉèÖÃ×î´óµü´ú´ÎÊı
-		void setMaxRuntime(const Second& time);                               // ÉèÖÃ×î´óÔËĞĞÊ±¼ä£¨Ãë£©
-		void setStopTol(const long double t, const unsigned int N = 5);       // ÉèÖÃ×îÓÅ½âÍ£Ö¹Îó²î
-		void setMutateProb(const double p);                                   // ÉèÖÃ»ùÒò±äÒì¸ÅÂÊ
-		void setCrossProb(const double p);                                    // ÉèÖÃ½»²æ¸ÅÂÊ
-		void setThreadNum(const int NUM);                                     // ÉèÖÃ²¢ĞĞ¼ÆËãµÄÏß³ÌÊı£¬Ä¬ÈÏÎª1
-		void setMonitor(const std::function<void(const GA_Info&)>&);          // ÉèÖÃÍâ²¿¼àÌıº¯Êı
-		void setResize(const std::function<std::size_t(std::size_t)>&);       // ÖÖÈºÊıÁ¿µ÷Õûº¯Êı
+		void setName(const std::string& str);                                 // è®¾ç½®ç§ç¾¤åç§°
+		void setBoundary(double(*b)[2]);                                      // è®¾ç½®å˜é‡åŒºé—´
+		void setBoundary(const GenBound& b);                                  // è®¾ç½®å˜é‡åŒºé—´
+		void setMaxGeneration(const unsigned int N);                          // è®¾ç½®æœ€å¤§è¿­ä»£æ¬¡æ•°
+		void setMaxRuntime(const Second& time);                               // è®¾ç½®æœ€å¤§è¿è¡Œæ—¶é—´ï¼ˆç§’ï¼‰
+		void setStopTol(const long double t, const unsigned int N = 5);       // è®¾ç½®æœ€ä¼˜è§£åœæ­¢è¯¯å·®
+		void setMutateProb(const double p);                                   // è®¾ç½®åŸºå› å˜å¼‚æ¦‚ç‡
+		void setCrossProb(const double p);                                    // è®¾ç½®äº¤å‰æ¦‚ç‡
+		void setThreadNum(const std::size_t NUM);                             // è®¾ç½®å¹¶è¡Œè®¡ç®—çš„çº¿ç¨‹æ•°ï¼Œé»˜è®¤ä¸º1
+		void setMonitor(const std::function<void(const GA_Info&)>&);          // è®¾ç½®å¤–éƒ¨ç›‘å¬å‡½æ•°
+		void setResize(const std::function<std::size_t(std::size_t)>&);       // ç§ç¾¤æ•°é‡è°ƒæ•´å‡½æ•°
 
-		const std::string getName()const;                                     // »ñÈ¡ÖÖÈºÃû³Æ
-		int getNVars()const;                                                  // »ñÈ¡ÖÖÈº±äÁ¿¸öÊı
-		int getGeneration()const;                                             // »ñµÃµ±Ç°ÖÖÈº´úÊı
-		int getGroupSize()const;                                              // »ñµÃµ±Ç°ÖÖÈº¸öÌåÊıÁ¿
-		std::vector<GA_Individual> getBestIndivs();                           // »ñÈ¡Àú´Îµü´úµÄ×îÓÅ½â
-		int getStopCode();                                                    // »ñÈ¡Stop Code
+		const std::string getName()const;                                     // è·å–ç§ç¾¤åç§°
+		int getNVars()const;                                                  // è·å–ç§ç¾¤å˜é‡ä¸ªæ•°
+		int getGeneration()const;                                             // è·å¾—å½“å‰ç§ç¾¤ä»£æ•°
+		int getGroupSize()const;                                              // è·å¾—å½“å‰ç§ç¾¤ä¸ªä½“æ•°é‡
+		std::vector<GA_Individual> getBestIndivs();                           // è·å–å†æ¬¡è¿­ä»£çš„æœ€ä¼˜è§£
+		int getStopCode();                                                    // è·å–Stop Code
 
-		void initGroup(const std::vector<GA_Individual>& indivs = std::vector<GA_Individual>());    // ³õÊ¼»¯ÖÖÈº¸öÌå
-		bool start();                                                         // ¿ªÊ¼µü´ú½ø»¯
-		void pause();                                                         // ÔİÍ£(Îª±£Ö¤Êı¾İÒ»ÖÂĞÔ£¬ĞèÔÚÒ»´ÎÍêÕûµü´úºópause)
-		void proceed();                                                       // ¼ÌĞøµü´ú
-		void kill();                                                          // ½áÊøµü´ú
-		void wait_result();                                                   // ×èÈûµ±Ç°Ïß³Ì,µÈ´ıÓÅ»¯½á¹û
-		GAGroup<R(Args...)> clone();                                          // ¿ËÂ¡µ±Ç°ÖÖÈº
+		void initGroup(const std::vector<GA_Individual>& indivs = std::vector<GA_Individual>());    // åˆå§‹åŒ–ç§ç¾¤ä¸ªä½“
+		bool start();                                                         // å¼€å§‹è¿­ä»£è¿›åŒ–
+		void pause();                                                         // æš‚åœ(ä¸ºä¿è¯æ•°æ®ä¸€è‡´æ€§ï¼Œéœ€åœ¨ä¸€æ¬¡å®Œæ•´è¿­ä»£åpause)
+		void proceed();                                                       // ç»§ç»­è¿­ä»£
+		void kill();                                                          // ç»“æŸè¿­ä»£
+		void wait_result();                                                   // é˜»å¡å½“å‰çº¿ç¨‹,ç­‰å¾…ä¼˜åŒ–ç»“æœ
+		GAGroup<R(Args...)> clone();                                          // å…‹éš†å½“å‰ç§ç¾¤
 
 	private:
-		void crossover(const int seq);                                        // ½»²æ(µ¥Ïß³ÌÄ£Ê½)
-		void mutate(const int seq);                                           // ±äÒì(µ¥Ïß³ÌÄ£Ê½)
-		void select(const int seq);                                           // Ñ¡Ôñ(µ¥Ïß³ÌÄ£Ê½)
+		void crossover(const int seq);                                        // äº¤å‰(å•çº¿ç¨‹æ¨¡å¼)
+		void mutate(const int seq);                                           // å˜å¼‚(å•çº¿ç¨‹æ¨¡å¼)
+		void select(const int seq);                                           // é€‰æ‹©(å•çº¿ç¨‹æ¨¡å¼)
 
-		void run();                                                           // µ¥Ïß³Ìµü´ú
-		void run_parallel(const int seq);                                     // ²¢ĞĞµü´ú
+		void run();                                                           // å•çº¿ç¨‹è¿­ä»£
+		void run_parallel(const int seq);                                     // å¹¶è¡Œè¿­ä»£
 
-		void updateRoulette(const std::size_t size);                          // ¸üĞÂÂÖÅÌ¶Ä¿Ì¶ÈÏß
-		void updateStopState();                                               // ¸üĞÂÖÖÈºÍ£Ö¹×´Ì¬
+		void updateRoulette(const std::size_t size);                          // æ›´æ–°è½®ç›˜èµŒåˆ»åº¦çº¿
+		void updateStopState();                                               // æ›´æ–°ç§ç¾¤åœæ­¢çŠ¶æ€
 		void switchIndivArray();
 
-		std::pair<int, int> selectPolarIndivs(const int seq, const int interval);   // Ñ°ÕÒ×î²îºÍ×îºÃµÄ¸öÌåÎ»ÖÃ,·µ»Ø<worst, best>
+		std::pair<int, int> selectPolarIndivs(const int seq, const int interval);   // å¯»æ‰¾æœ€å·®å’Œæœ€å¥½çš„ä¸ªä½“ä½ç½®,è¿”å›<worst, best>
 		template<std::size_t... I>
-		R callFitFunc(double* args, const opt::index_seq<I...>&);              // µ÷ÓÃÊÊÓ¦¶Èº¯Êı
-		bool flushStopFlag();                                                  // ÅĞ¶ÏÊÇ·ñ½áÊøµü´ú
+		R callFitFunc(double* args, const opt::index_seq<I...>&);              // è°ƒç”¨é€‚åº”åº¦å‡½æ•°
+		bool flushStopFlag();                                                  // åˆ¤æ–­æ˜¯å¦ç»“æŸè¿­ä»£
 	};
 
-	/******************************************* ¹¹ÔìÓëÎö¹¹ ***********************************************************/
-	// ¹¹Ôìº¯Êı£¬ĞèÌá¹©¹©ÊÊÓ¦¶Èº¯Êı¼°ÖÖÈºÊıÁ¿
+	/******************************************* æ„é€ ä¸ææ„ ***********************************************************/
+	// æ„é€ å‡½æ•°ï¼Œéœ€æä¾›ä¾›é€‚åº”åº¦å‡½æ•°åŠç§ç¾¤æ•°é‡
 	template<class R, class... Args>
 	GAGroup<R(Args...)>::GAGroup(R(*f)(Args...), const std::size_t size)
 		:name("None"),
@@ -133,11 +133,11 @@ namespace opt
 			tempIndivs[i] = GA_Individual(nVars);
 		}
 
-		// ±äÁ¿Çø¼ä
+		// å˜é‡åŒºé—´
 		bound = new double[nVars][2];
 	}
 
-	// ¸´ÖÆ¹¹Ôì
+	// å¤åˆ¶æ„é€ 
 	template<class R, class... Args>
 	GAGroup<R(Args...)>::GAGroup(GAGroup<R(Args...)>& other)
 		:name(other.name),
@@ -165,7 +165,7 @@ namespace opt
 			tempIndivs[i] = (other.indivs)[i];
 		}
 
-		// ±äÁ¿Çø¼ä
+		// å˜é‡åŒºé—´
 		bound = new double[nVars][2];
 		for (std::size_t i = 0; i < nVars; i++)
 		{
@@ -179,14 +179,14 @@ namespace opt
 		this->group_state = other.group_state;
 		this->group_state.sleep.signal = false;
 		this->group_state.sleep.result = false;
-		this->group_state.stopCode = -1;   // Î´¿ªÊ¼µü´ú
+		this->group_state.stopCode = -1;   // æœªå¼€å§‹è¿­ä»£
 
 		this->thread_sync.reset(new GAThreadSync<R, Args...>(*(other.thread_sync), this));
 
 		other.proceed();
 	}
 
-	// ÒÆ¶¯¹¹Ôì
+	// ç§»åŠ¨æ„é€ 
 	template<class R, class... Args>
 	GAGroup<R(Args...)>::GAGroup(GAGroup<R(Args...)>&& other)
 		:name(other.name),
@@ -206,7 +206,7 @@ namespace opt
 		group_state(other.group_state),
 		thread_sync(nullptr)
 	{
-		other.kill();        // ÖÕÖ¹ÖÖÈºµü´ú
+		other.kill();        // ç»ˆæ­¢ç§ç¾¤è¿­ä»£
 
 		other.indivs = nullptr;
 		other.tempIndivs = nullptr;
@@ -223,7 +223,7 @@ namespace opt
 		thread_sync.reset(new GAThreadSync<R, Args...>(*(other.thread_sync), this));
 	}
 
-	// Îö¹¹º¯Êı
+	// ææ„å‡½æ•°
 	template<class R, class... Args>
 	GAGroup<R(Args...)>::~GAGroup()
 	{
@@ -234,39 +234,39 @@ namespace opt
 	/*****************************************************************************************************************/
 
 	/**************************************** Setter ************************************************************/
-	// ÉèÖÃÖÖÈºÃû³Æ
+	// è®¾ç½®ç§ç¾¤åç§°
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setName(const std::string& str)
 	{
 		this->name = str;
 	}
 
-	// ÉèÖÃËùÓĞ±äÁ¿Çø¼ä,´«Èë³õÊ¼»¯ÁĞ±í
+	// è®¾ç½®æ‰€æœ‰å˜é‡åŒºé—´,ä¼ å…¥åˆå§‹åŒ–åˆ—è¡¨
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setBoundary(const GenBound& b)
 	{
 		const std::size_t len = b.size();
 		for (std::size_t i = 0; i < len; i++)
 		{
-			bound[i][0] = *((*(b.begin() + i)).begin());         // ÏÂ±ß½ç
-			bound[i][1] = *((*(b.begin() + i)).begin() + 1);     // ÉÏ±ß½ç
+			bound[i][0] = *((*(b.begin() + i)).begin());         // ä¸‹è¾¹ç•Œ
+			bound[i][1] = *((*(b.begin() + i)).begin() + 1);     // ä¸Šè¾¹ç•Œ
 		}
 		group_state.setBoundFlag = true;
 	}
 
-	// ÉèÖÃËùÓĞ±äÁ¿Çø¼ä,´«ÈëÊı×éÖ¸Õë
+	// è®¾ç½®æ‰€æœ‰å˜é‡åŒºé—´,ä¼ å…¥æ•°ç»„æŒ‡é’ˆ
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setBoundary(double(*b)[2])
 	{
 		for (int i = 0; i < nVars; i++)
 		{
-			bound[i][0] = b[i][0];       // ÏÂ±ß½ç
-			bound[i][1] = b[i][1];       // ÉÏ±ß½ç
+			bound[i][0] = b[i][0];       // ä¸‹è¾¹ç•Œ
+			bound[i][1] = b[i][1];       // ä¸Šè¾¹ç•Œ
 		}
 		group_state.setBoundFlag = true;
 	}
 
-	// ÉèÖÃ×î´óµü´ú´ÎÊı
+	// è®¾ç½®æœ€å¤§è¿­ä»£æ¬¡æ•°
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setMaxGeneration(const unsigned int N)
 	{
@@ -274,7 +274,7 @@ namespace opt
 		group_state.maxGene = N;
 	}
 
-	// ÉèÖÃ×î´óÔËĞĞÊ±¼ä£¨Ãë£©
+	// è®¾ç½®æœ€å¤§è¿è¡Œæ—¶é—´ï¼ˆç§’ï¼‰
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setMaxRuntime(const Second& time)
 	{
@@ -282,7 +282,7 @@ namespace opt
 		group_state.maxRuntime = time;
 	}
 
-	// ÉèÖÃ×îÓÅ½âÍ£Ö¹Îó²î
+	// è®¾ç½®æœ€ä¼˜è§£åœæ­¢è¯¯å·®
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setStopTol(const long double t, const unsigned int N)
 	{
@@ -291,23 +291,23 @@ namespace opt
 		group_state.stopTol = t;
 	}
 
-	// ÉèÖÃ»ùÒò±äÒì¸ÅÂÊ
+	// è®¾ç½®åŸºå› å˜å¼‚æ¦‚ç‡
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setMutateProb(const double p)
 	{
 		mutateProb = p;
 	}
 
-	// ÉèÖÃ»ùÒò½»²æ¸ÅÂÊ
+	// è®¾ç½®åŸºå› äº¤å‰æ¦‚ç‡
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setCrossProb(const double p)
 	{
 		crossProb = p;
 	}
 
-	// ÉèÖÃ²¢ĞĞ¼ÆËãµÄÏß³ÌÊı£¬Ä¬ÈÏÎª1
+	// è®¾ç½®å¹¶è¡Œè®¡ç®—çš„çº¿ç¨‹æ•°ï¼Œé»˜è®¤ä¸º1
 	template<class R, class... Args>
-	void GAGroup<R(Args...)>::setThreadNum(const int NUM)
+	void GAGroup<R(Args...)>::setThreadNum(const std::size_t NUM)
 	{
 		if (NUM > 1)
 		{
@@ -319,14 +319,14 @@ namespace opt
 		}
 	}
 
-	// ÉèÖÃÍâ²¿¼àÌıº¯Êı
+	// è®¾ç½®å¤–éƒ¨ç›‘å¬å‡½æ•°
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setMonitor(const std::function<void(const GA_Info&)>& func)
 	{
 		this->monitor = func;
 	}
 
-	// ÖÖÈºÊıÁ¿µ÷Õûº¯Êı
+	// ç§ç¾¤æ•°é‡è°ƒæ•´å‡½æ•°
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::setResize(const std::function<std::size_t(std::size_t)>& func)
 	{
@@ -334,42 +334,42 @@ namespace opt
 	}
 
 	/**************************************Getter*********************************************************************/
-	// »ñÈ¡ÖÖÈºÃû³Æ
+	// è·å–ç§ç¾¤åç§°
 	template<class R, class... Args>
 	const std::string GAGroup<R(Args...)>::getName()const
 	{
 		return this->name;
 	}
 
-	// »ñÈ¡ÖÖÈº±äÁ¿¸öÊı
+	// è·å–ç§ç¾¤å˜é‡ä¸ªæ•°
 	template<class R, class... Args>
 	int GAGroup<R(Args...)>::getNVars()const
 	{
 		return nVars;
 	}
 
-	// »ñÈ¡Ç°ÖÖÈº´úÊı
+	// è·å–å‰ç§ç¾¤ä»£æ•°
 	template<class R, class... Args>
 	int GAGroup<R(Args...)>::getGeneration()const
 	{
 		return group_state.nGene;
 	}
 
-	// »ñÈ¡µ±Ç°ÖÖÈº¸öÌåÊıÁ¿
+	// è·å–å½“å‰ç§ç¾¤ä¸ªä½“æ•°é‡
 	template<class R, class... Args>
 	int GAGroup<R(Args...)>::getGroupSize()const
 	{
 		return groupSize;
 	}
 
-	// »ñÈ¡Àú´Îµü´úµÄ×îÓÅ½â
+	// è·å–å†æ¬¡è¿­ä»£çš„æœ€ä¼˜è§£
 	template<class R, class... Args>
 	std::vector<GA_Individual> GAGroup<R(Args...)>::getBestIndivs()
 	{
 		return bestIndivs;
 	}
 
-	// »ñÈ¡Í£Ö¹´úÂë
+	// è·å–åœæ­¢ä»£ç 
 	template<class R, class... Args>
 	int GAGroup<R(Args...)>::getStopCode()
 	{
@@ -377,32 +377,32 @@ namespace opt
 	}
 
 	/******************************************************************************************************************/
-	// ¿ªÊ¼µü´ú
+	// å¼€å§‹è¿­ä»£
 	template<class R, class... Args>
 	bool GAGroup<R(Args...)>::start()
 	{
-		// ³õÊ¼»¯ÖÖÈº
-		// Èç¹ûÖÖÈºÒÑ±»³õÊ¼»¯Ôò²»ÔÙÖØ¸´³õÊ¼»¯
+		// åˆå§‹åŒ–ç§ç¾¤
+		// å¦‚æœç§ç¾¤å·²è¢«åˆå§‹åŒ–åˆ™ä¸å†é‡å¤åˆå§‹åŒ–
 		if (group_state.initFlag == false)
 		{
 			initGroup();
 		}
 
-		// ÈôÖÖÈºÂú×ã½ø»¯Ìõ¼ş
+		// è‹¥ç§ç¾¤æ»¡è¶³è¿›åŒ–æ¡ä»¶
 		if (group_state.runable())
 		{
 			group_state.startTime = std::chrono::steady_clock::now();
-			group_state.stopCode = 0; // ÕıÔÚµü´ú
+			group_state.stopCode = 0; // æ­£åœ¨è¿­ä»£
 
-			if (thread_sync->threadNum > 1) // ¶àÏß³ÌÄ£Ê½
+			if (thread_sync->threadNum > 1) // å¤šçº¿ç¨‹æ¨¡å¼
 			{
-				// ¹¹ÔìÖÖÈº½»²æÏß³Ì×é
-				for (int i = 0; i < thread_sync->threadNum; i++)
+				// æ„é€ ç§ç¾¤äº¤å‰çº¿ç¨‹ç»„
+				for (std::size_t i = 0; i < thread_sync->threadNum; i++)
 				{
 					vec_run.emplace_back(&GAGroup<R(Args...)>::run_parallel, this, i);
 				}
 			}
-			else // µ¥Ïß³ÌÄ£Ê½
+			else // å•çº¿ç¨‹æ¨¡å¼
 			{
 				single_thread = std::thread(&GAGroup<R(Args...)>::run, this);
 			}
@@ -411,46 +411,46 @@ namespace opt
 		return false;
 	}
 
-	// ½ø»¯µü´ú(µ¥Ïß³ÌÄ£Ê½)
+	// è¿›åŒ–è¿­ä»£(å•çº¿ç¨‹æ¨¡å¼)
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::run()
 	{
 		while (true)
 		{
-			// ¸üĞÂ¸üĞÂÂÖÅÌ¶Ä¿Ì¶ÈÏß
+			// æ›´æ–°æ›´æ–°è½®ç›˜èµŒåˆ»åº¦çº¿
 			updateRoulette(groupSize);
 
-			// ¸üĞÂ×Ó´ú¸öÌåÊıÁ¿
+			// æ›´æ–°å­ä»£ä¸ªä½“æ•°é‡
 			if (resize)
 			{
 				groupSize = resize(group_state.nGene + 1);
 				if (groupSize < 0) { groupSize = 0; }
 				groupSize = groupSize + groupSize % 2;
 			}
-			crossover(0);                     // ½»²æ
-			switchIndivArray();               // ½»»»¸öÌåÊı×é
-			mutate(0);                        // ±äÒì
-			select(0);                        // »·¾³Ñ¡Ôñ
-			updateStopState();                // ¸üĞÂÍ£Ö¹×´Ì¬
+			crossover(0);                     // äº¤å‰
+			switchIndivArray();               // äº¤æ¢ä¸ªä½“æ•°ç»„
+			mutate(0);                        // å˜å¼‚
+			select(0);                        // ç¯å¢ƒé€‰æ‹©
+			updateStopState();                // æ›´æ–°åœæ­¢çŠ¶æ€
 
-			// µ÷ÓÃÍâ²¿¼àÌıº¯Êı
+			// è°ƒç”¨å¤–éƒ¨ç›‘å¬å‡½æ•°
 			if (monitor)
 			{
 				GA_Info ga_info(group_state.time, group_state.nGene, bestIndivs.back());
 				monitor(ga_info);
 			}
 
-			// ÅĞ¶ÏÊÇ·ñµ½´ïÍ£Ö¹Ìõ¼ş
+			// åˆ¤æ–­æ˜¯å¦åˆ°è¾¾åœæ­¢æ¡ä»¶
 			if (flushStopFlag()) { return; }
 
-			// ÊÇ·ñÔİÍ£µü´ú
+			// æ˜¯å¦æš‚åœè¿­ä»£
 			if (group_state.sleep.signal == true)
 			{
 				group_state.sleep.result = true;
 				thread_sync->cv.notify_all();
 			}
 
-			// ÊÇ·ñÔİÍ£µü´ú(Îª±£Ö¤Êı¾İÒ»ÖÂĞÔ£¬ĞèÔÚÒ»´ÎÍêÕûµü´úºópause)
+			// æ˜¯å¦æš‚åœè¿­ä»£(ä¸ºä¿è¯æ•°æ®ä¸€è‡´æ€§ï¼Œéœ€åœ¨ä¸€æ¬¡å®Œæ•´è¿­ä»£åpause)
 			{
 				std::unique_lock<std::mutex> lck(thread_sync->mtx);
 				thread_sync->cv.wait(lck, [this]() { return !(this->group_state.sleep.signal); });
@@ -458,7 +458,7 @@ namespace opt
 		}
 	}
 
-	// ½ø»¯µü´ú(¶àÏß³ÌÄ£Ê½)
+	// è¿›åŒ–è¿­ä»£(å¤šçº¿ç¨‹æ¨¡å¼)
 	template<class R, class ...Args>
 	void GAGroup<R(Args...)>::run_parallel(const int seq)
 	{
@@ -467,7 +467,7 @@ namespace opt
 			/////////////////////////////// Crossover /////////////////////////////////////////////////////
 			crossover(seq);
 
-			// Ïß³ÌÍ¬²½
+			// çº¿ç¨‹åŒæ­¥
 			thread_sync->mtx.lock();
 			thread_sync->cross_sync(seq);
 			thread_sync->mtx.unlock();
@@ -484,7 +484,7 @@ namespace opt
 			/////////////////////////////// Mutate /////////////////////////////////////////////////////
 			mutate(seq);
 
-			// Ïß³ÌÍ¬²½
+			// çº¿ç¨‹åŒæ­¥
 			thread_sync->mtx.lock();
 			thread_sync->mutate_sync(seq);
 			thread_sync->mtx.unlock();
@@ -503,13 +503,13 @@ namespace opt
 
 			int thread_num = thread_sync->threadNum;
 
-			// Ñ°ÕÒ×Ó´ú×î²îºÍ×îÓÅ¸öÌå
+			// å¯»æ‰¾å­ä»£æœ€å·®å’Œæœ€ä¼˜ä¸ªä½“
 			std::tie(worst_temp, best_temp) = this->selectPolarIndivs(seq, thread_num);
 
-			// Ïß³ÌÍ¬²½
+			// çº¿ç¨‹åŒæ­¥
 			thread_sync->mtx.lock();
 
-			// ¸üĞÂ×îÓÅÓë×î²î¸öÌåÎ»ÖÃ;
+			// æ›´æ–°æœ€ä¼˜ä¸æœ€å·®ä¸ªä½“ä½ç½®;
 			if (indivs[worst_temp].fitness < indivs[group_state.worstIndex].fitness)
 			{
 				group_state.worstIndex = worst_temp;
@@ -523,7 +523,7 @@ namespace opt
 			thread_sync->mtx.unlock();
 			thread_sync->cv.notify_all();
 
-			// Îª±£Ö¤Êı¾İÒ»ÖÂĞÔ£¬ĞèÔÚÒ»´ÎÍêÕûµü´úºópause
+			// ä¸ºä¿è¯æ•°æ®ä¸€è‡´æ€§ï¼Œéœ€åœ¨ä¸€æ¬¡å®Œæ•´è¿­ä»£åpause
 			{
 				std::unique_lock<std::mutex> lck(thread_sync->mtx);
 				thread_sync->cv.wait(lck, [this, &seq]() {
@@ -535,20 +535,20 @@ namespace opt
 		}
 	}
 
-	// ×èÈûµ±Ç°Ïß³Ì, µÈ´ı¼ÆËã½á¹û
+	// é˜»å¡å½“å‰çº¿ç¨‹, ç­‰å¾…è®¡ç®—ç»“æœ
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::wait_result()
 	{
-		if (thread_sync->threadNum == 1) // µ¥Ïß³ÌÄ£Ê½
+		if (thread_sync->threadNum == 1) // å•çº¿ç¨‹æ¨¡å¼
 		{
 			if (single_thread.joinable())
 			{
 				single_thread.join();
 			}
 		}
-		else  // ¶àÏß³ÌÄ£Ê½
+		else  // å¤šçº¿ç¨‹æ¨¡å¼
 		{
-			for (int i = 0; i < thread_sync->threadNum; i++)
+			for (std::size_t i = 0; i < thread_sync->threadNum; i++)
 			{
 				if (vec_run[i].joinable())
 				{
@@ -558,18 +558,18 @@ namespace opt
 		}
 	}
 
-	// ¿ËÂ¡µ±Ç°×´Ì¬ÖÖÈº
+	// å…‹éš†å½“å‰çŠ¶æ€ç§ç¾¤
 	template<class R, class... Args>
 	GAGroup<R(Args...)> GAGroup<R(Args...)>::clone()
 	{
 		return GAGroup<R(Args...)>(*this);
 	}
 
-	// ÔİÍ£(Îª±£Ö¤Êı¾İÒ»ÖÂĞÔ£¬ĞèÔÚÒ»´ÎÍêÕûµü´úºópause)
+	// æš‚åœ(ä¸ºä¿è¯æ•°æ®ä¸€è‡´æ€§ï¼Œéœ€åœ¨ä¸€æ¬¡å®Œæ•´è¿­ä»£åpause)
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::pause()
 	{
-		// Èç¹ûÖÖÈºÎ´´¦ÓÚµü´úÔËĞĞ×´Ì¬
+		// å¦‚æœç§ç¾¤æœªå¤„äºè¿­ä»£è¿è¡ŒçŠ¶æ€
 		if (group_state.stopCode != 0)
 		{
 			return;
@@ -580,11 +580,11 @@ namespace opt
 		thread_sync->cv.wait(lck, [this]() {return this->group_state.sleep.result; });
 	}
 
-	// ¼ÌĞøµü´ú
+	// ç»§ç»­è¿­ä»£
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::proceed()
 	{
-		// Èç¹ûÖÖÈºÎ´´¦ÓÚµü´úÔËĞĞ×´Ì¬
+		// å¦‚æœç§ç¾¤æœªå¤„äºè¿­ä»£è¿è¡ŒçŠ¶æ€
 		if (group_state.stopCode != 0)
 		{
 			return;
@@ -595,11 +595,11 @@ namespace opt
 		this->thread_sync->cv.notify_all();
 	}
 
-	// Í£Ö¹µü´ú
+	// åœæ­¢è¿­ä»£
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::kill()
 	{
-		// Èç¹ûÖÖÈºÎ´´¦ÓÚµü´úÔËĞĞ×´Ì¬
+		// å¦‚æœç§ç¾¤æœªå¤„äºè¿­ä»£è¿è¡ŒçŠ¶æ€
 		if (group_state.stopCode != 0)
 		{
 			return;
@@ -610,14 +610,14 @@ namespace opt
 	}
 
 	/******************************************* Private Functions *****************************************************/
-	// ³õÊ¼»¯ÖÖÈº
+	// åˆå§‹åŒ–ç§ç¾¤
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::initGroup(const std::vector<GA_Individual>& init_indivs)
 	{
-		// ³õÊ¼»¯Ç°ĞèÒª±£Ö¤ÒÑÉèÖÃ»ùÒò±äÁ¿Çø¼ä
+		// åˆå§‹åŒ–å‰éœ€è¦ä¿è¯å·²è®¾ç½®åŸºå› å˜é‡åŒºé—´
 		if (group_state.setBoundFlag)
 		{
-			// 1.³õÊ¼»¯Ã¿Ò»¸ö¸öÌå
+			// 1.åˆå§‹åŒ–æ¯ä¸€ä¸ªä¸ªä½“
 			for (std::size_t i = 0; i < init_indivs.size(); i++)
 			{
 				indivs[i] = init_indivs[i];
@@ -625,26 +625,26 @@ namespace opt
 			}
 			for (std::size_t i = init_indivs.size(); i < groupSize; i++)
 			{
-				// ÉèÖÃ¸öÌå³õÊ¼»ùÒò
+				// è®¾ç½®ä¸ªä½“åˆå§‹åŸºå› 
 				for (std::size_t j = 0; j < nVars; j++)
 				{
 					indivs[i].vars[j] = random_real(bound[j][0], bound[j][1]);
 				}
-				// ¸öÌåÊÊÓ¦¶È
+				// ä¸ªä½“é€‚åº”åº¦
 				indivs[i].fitness = callFitFunc(indivs[i].vars, opt::make_index_seq<sizeof...(Args)>());
 			}
 
-			// 2.Ñ°ÕÒ×î²îºÍ×îºÃÊÊÓ¦¶È¸öÌå
+			// 2.å¯»æ‰¾æœ€å·®å’Œæœ€å¥½é€‚åº”åº¦ä¸ªä½“
 			std::tie(group_state.worstIndex, group_state.bestIndex) = this->selectPolarIndivs(0, 1);
-			bestIndivs.push_back(indivs[group_state.bestIndex]);                     // ¼ÇÂ¼×îÓÅ½â
+			bestIndivs.push_back(indivs[group_state.bestIndex]);                     // è®°å½•æœ€ä¼˜è§£
 
-			// 3.¸üĞÂÂÖÅÌ¶Ä¿Ì¶ÈÏß
+			// 3.æ›´æ–°è½®ç›˜èµŒåˆ»åº¦çº¿
 			updateRoulette(groupSize);
 
-			// 4.ÉèÖÃ³õÊ¼»¯±êÖ¾Î»
+			// 4.è®¾ç½®åˆå§‹åŒ–æ ‡å¿—ä½
 			group_state.initFlag = true;
 
-			// 5.³õÊ¼»¯Ïß³ÌÍ¬²½Æ÷
+			// 5.åˆå§‹åŒ–çº¿ç¨‹åŒæ­¥å™¨
 			thread_sync->crossReady = true;
 			thread_sync->mutReady = false;
 			thread_sync->selectReady = false;
@@ -655,34 +655,34 @@ namespace opt
 		}
 	}
 
-	// ½»²æ(µ¥Ïß³ÌÄ£Ê½)
+	// äº¤å‰(å•çº¿ç¨‹æ¨¡å¼)
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::crossover(const int seq)
 	{
-		int Index_M = 0;             // ¸¸¸öÌå
-		int Index_F = 0;             // Ä¸¸öÌå
-		double rand_cross = 0;       // Ëæ»úÊı»º´æ
+		int Index_M = 0;             // çˆ¶ä¸ªä½“
+		int Index_F = 0;             // æ¯ä¸ªä½“
+		double rand_cross = 0;       // éšæœºæ•°ç¼“å­˜
 
-		int thread_num = thread_sync->threadNum;          // Ïß³ÌÊı
+		int thread_num = thread_sync->threadNum;          // çº¿ç¨‹æ•°
 
-		// Ëæ»úÑ¡È¡¸öÌå½»²æ, fitnessÔ½´ó£¬±»Ñ¡ÖĞµÄ¸ÅÂÊÔ½´ó
+		// éšæœºé€‰å–ä¸ªä½“äº¤å‰, fitnessè¶Šå¤§ï¼Œè¢«é€‰ä¸­çš„æ¦‚ç‡è¶Šå¤§
 		for (std::size_t i = seq * 2; i < groupSize; i += 2 * thread_num)
 		{
-			// Ëæ»úÑ¡È¡Á½¸ö¸öÌå×÷Îª¸¸´ú
+			// éšæœºé€‰å–ä¸¤ä¸ªä¸ªä½“ä½œä¸ºçˆ¶ä»£
 			Index_M = roulette.roll();
 			Index_F = roulette.roll();
 
-			// Éú³É×Ó´ú¸öÌå, ´æ·ÅÓÚ»º´æÊı×étempIndivsÖĞ
+			// ç”Ÿæˆå­ä»£ä¸ªä½“, å­˜æ”¾äºç¼“å­˜æ•°ç»„tempIndivsä¸­
 			for (std::size_t j = 0; j < nVars; j++)
 			{
-				// ÒÀ¾İ½»²æ¸ÅÂÊ¾ö¶¨»ùÒòÊÇ·ñ½øĞĞ½»²æ
+				// ä¾æ®äº¤å‰æ¦‚ç‡å†³å®šåŸºå› æ˜¯å¦è¿›è¡Œäº¤å‰
 				rand_cross = random_real(0, 1);
-				if (rand_cross <= crossProb)   // ½»²æ
+				if (rand_cross <= crossProb)   // äº¤å‰
 				{
-					// »ùÒò½»²æ²úÉú×Ó´ú»ùÒò
+					// åŸºå› äº¤å‰äº§ç”Ÿå­ä»£åŸºå› 
 					std::tie(tempIndivs[i].vars[j], tempIndivs[i + 1].vars[j]) = cross_SBX(indivs[Index_M].vars[j], indivs[Index_F].vars[j]);
 
-					// ×Ó´ú»ùÒòÊÇ·ñ³¬¹ı±ß½ç
+					// å­ä»£åŸºå› æ˜¯å¦è¶…è¿‡è¾¹ç•Œ
 					if (tempIndivs[i].vars[j] < bound[j][0] || tempIndivs[i].vars[j] > bound[j][1])
 					{
 						tempIndivs[i].vars[j] = random_real(bound[j][0], bound[j][1]);
@@ -692,9 +692,9 @@ namespace opt
 						tempIndivs[i + 1].vars[j] = random_real(bound[j][0], bound[j][1]);
 					}
 				}
-				else  // ²»½»²æ
+				else  // ä¸äº¤å‰
 				{
-					// ¼Ì³Ğ¸¸´ú»ùÒò£¬»ùÒò²»·¢Éú½»²æ
+					// ç»§æ‰¿çˆ¶ä»£åŸºå› ï¼ŒåŸºå› ä¸å‘ç”Ÿäº¤å‰
 					tempIndivs[i].vars[j] = indivs[Index_M].vars[j];
 					tempIndivs[i + 1].vars[j] = indivs[Index_F].vars[j];
 				}
@@ -702,46 +702,46 @@ namespace opt
 		}
 	}
 
-	// ±äÒì(µ¥Ïß³ÌÄ£Ê½)
+	// å˜å¼‚(å•çº¿ç¨‹æ¨¡å¼)
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::mutate(const int seq)
 	{
-		double rand_num = 0; // Ëæ»úÊı
+		double rand_num = 0; // éšæœºæ•°
 
-		int thread_num = thread_sync->threadNum;  // Ïß³ÌÊı
+		int thread_num = thread_sync->threadNum;  // çº¿ç¨‹æ•°
 
-		// Ã¿¸ö¸öÌåµÄ±äÒì
+		// æ¯ä¸ªä¸ªä½“çš„å˜å¼‚
 		for (std::size_t i = seq; i < groupSize; i += thread_num)
 		{
-			// Ã¿¸ö»ùÒòµÄ±äÒì
+			// æ¯ä¸ªåŸºå› çš„å˜å¼‚
 			for (std::size_t j = 0; j < nVars; j++)
 			{
 				rand_num = random_real(0, 1);
 				if (rand_num < mutateProb)
 				{
-					// µ¥¸ö»ùÒò±äÒì
+					// å•ä¸ªåŸºå› å˜å¼‚
 					indivs[i].vars[j] = mutate_PM(indivs[i].vars[j], bound[j][0], bound[j][1]);
 				}
 			}
 
-			// ¼ÆËãÃ¿¸ö¸öÌåÊÊÓ¦¶È
+			// è®¡ç®—æ¯ä¸ªä¸ªä½“é€‚åº”åº¦
 			indivs[i].fitness = callFitFunc(indivs[i].vars, opt::make_index_seq<sizeof...(Args)>());
 		}
 	}
 
-	// Ñ¡Ôñ(µ¥Ïß³ÌÄ£Ê½)
+	// é€‰æ‹©(å•çº¿ç¨‹æ¨¡å¼)
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::select(const int seq)
 	{
-		int thread_num = thread_sync->threadNum; // Ïß³ÌÊı
+		int thread_num = thread_sync->threadNum; // çº¿ç¨‹æ•°
 
-		// Ñ°ÕÒ×Ó´ú×î²îºÍ×îÓÅ¸öÌå
+		// å¯»æ‰¾å­ä»£æœ€å·®å’Œæœ€ä¼˜ä¸ªä½“
 		std::tie(group_state.worstIndex, group_state.bestIndex) = this->selectPolarIndivs(seq, thread_num);
 
-		// ÌÔÌ­×Ó´ú×î²î¸öÌå, ÓÃ¸¸´ú×îÓÅ¸öÌåÈ¡´ú
+		// æ·˜æ±°å­ä»£æœ€å·®ä¸ªä½“, ç”¨çˆ¶ä»£æœ€ä¼˜ä¸ªä½“å–ä»£
 		indivs[group_state.worstIndex] = bestIndivs.back();
 
-		// Èç¹û×Ó´ú³öÏÖ¸üÓÅ¸öÌå
+		// å¦‚æœå­ä»£å‡ºç°æ›´ä¼˜ä¸ªä½“
 		if (indivs[group_state.bestIndex].fitness >= bestIndivs.back().fitness)
 		{
 			bestIndivs.push_back(indivs[group_state.bestIndex]);
@@ -752,13 +752,13 @@ namespace opt
 		}
 	}
 
-	// ¸üĞÂÂÖÅÌ¶Ä¿Ì¶ÈÏß
+	// æ›´æ–°è½®ç›˜èµŒåˆ»åº¦çº¿
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::updateRoulette(const std::size_t size)
 	{
 		int worst = 0;
 
-		// ±éÀúindivsµÄfitness£¬Ñ°ÕÒfitnessµÄ×îĞ¡Öµ,¼ÇÂ¼×îĞ¡ÖµÎ»ÖÃ
+		// éå†indivsçš„fitnessï¼Œå¯»æ‰¾fitnessçš„æœ€å°å€¼,è®°å½•æœ€å°å€¼ä½ç½®
 		for (std::size_t i = 1; i < size; i++)
 		{
 			if (indivs[i].fitness < indivs[worst].fitness)
@@ -767,31 +767,31 @@ namespace opt
 			}
 		}
 
-		// ÖØĞÂ»®·Ö¿Ì¶ÈÏß
+		// é‡æ–°åˆ’åˆ†åˆ»åº¦çº¿
 		roulette.reset(size + 1);
 
-		// ¸üĞÂÂÖÅÌ¶Ä¿Ì¶ÈÏß
+		// æ›´æ–°è½®ç›˜èµŒåˆ»åº¦çº¿
 		for (std::size_t i = 1; i < size + 1; i++)
 		{
 			roulette[i] = roulette[i - 1] + (indivs[i - 1].fitness - indivs[worst].fitness);
 		}
 	}
 
-	// ¸üĞÂÖÖÈºÍ£Ö¹×´Ì¬
+	// æ›´æ–°ç§ç¾¤åœæ­¢çŠ¶æ€
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::updateStopState()
 	{
-		// µü´ú´ÎÊı¼ÓÒ»
+		// è¿­ä»£æ¬¡æ•°åŠ ä¸€
 		group_state.nGene++;
 
-		// ¼ÇÂ¼µ±Ç°Ê±¼ä
+		// è®°å½•å½“å‰æ—¶é—´
 		group_state.nowTime = std::chrono::steady_clock::now();
 
-		// ÊÇ·ñ´ïµ½×î´óµü´úÊ±¼ä
+		// æ˜¯å¦è¾¾åˆ°æœ€å¤§è¿­ä»£æ—¶é—´
 		std::chrono::duration<double> evolTime = group_state.nowTime - group_state.startTime;
-		group_state.time = evolTime.count(); // Ãë
+		group_state.time = evolTime.count(); // ç§’
 
-		// ÅĞ¶Ï×îÓÅ¸öÌåfitnessÖµ½ÏÉÏÒ»´úµÄ²¨¶¯Çé¿ö
+		// åˆ¤æ–­æœ€ä¼˜ä¸ªä½“fitnesså€¼è¾ƒä¸Šä¸€ä»£çš„æ³¢åŠ¨æƒ…å†µ
 		if (abs(bestIndivs[group_state.nGene - 1].fitness - bestIndivs[group_state.nGene].fitness) <= group_state.stopTol)
 		{
 			group_state.count++;
@@ -802,24 +802,24 @@ namespace opt
 		}
 	}
 
-	// ¸üĞÂ¸öÌåÊı×éÖ¸Õë
+	// æ›´æ–°ä¸ªä½“æ•°ç»„æŒ‡é’ˆ
 	template<class R, class... Args>
 	void GAGroup<R(Args...)>::switchIndivArray()
 	{
-		// ½»»»×Ó´ú¸öÌå»º´æÇøºÍ¸¸´ú¸öÌå´æ·ÅÇøµÄÖ¸Õë
+		// äº¤æ¢å­ä»£ä¸ªä½“ç¼“å­˜åŒºå’Œçˆ¶ä»£ä¸ªä½“å­˜æ”¾åŒºçš„æŒ‡é’ˆ
 		GA_Individual* temp = indivs;
 		indivs = tempIndivs;
 		tempIndivs = temp;
 	}
 
-	// Ñ°ÕÒ×î²îºÍ×îºÃµÄ¸öÌåÎ»ÖÃ, ĞÎ²ÎÎªÏß³ÌID(0 ~ N)¼°²¢ĞĞÏß³ÌÊıÁ¿, ·µ»Øpair<worst, best>
+	// å¯»æ‰¾æœ€å·®å’Œæœ€å¥½çš„ä¸ªä½“ä½ç½®, å½¢å‚ä¸ºçº¿ç¨‹ID(0 ~ N)åŠå¹¶è¡Œçº¿ç¨‹æ•°é‡, è¿”å›pair<worst, best>
 	template<class R, class... Args>
 	std::pair<int, int> GAGroup<R(Args...)>::selectPolarIndivs(const int seq, const int interval)
 	{
 		int worst = seq;
 		int best = seq;
 
-		// ±éÀúindivsµÄfitness£¬Ñ°ÕÒfitnessµÄ¼«Öµ£¬¼ÇÂ¼¼«ÖµÎ»ÖÃ
+		// éå†indivsçš„fitnessï¼Œå¯»æ‰¾fitnessçš„æå€¼ï¼Œè®°å½•æå€¼ä½ç½®
 		for (std::size_t i = seq + interval; i < groupSize; i += interval)
 		{
 			if (indivs[i].fitness < indivs[worst].fitness)
@@ -836,7 +836,7 @@ namespace opt
 		return std::make_pair(worst, best);
 	}
 
-	// µ÷ÓÃÊÊÓ¦¶Èº¯Êı
+	// è°ƒç”¨é€‚åº”åº¦å‡½æ•°
 	template<class R, class... Args>
 	template<std::size_t... I>
 	inline R GAGroup<R(Args...)>::callFitFunc(double* args, const opt::index_seq<I...>&)
@@ -844,13 +844,13 @@ namespace opt
 		return fitFunc(args[I]...);
 	}
 
-	// ÅĞ¶ÏÊÇ·ñ½áÊøµü´ú
+	// åˆ¤æ–­æ˜¯å¦ç»“æŸè¿­ä»£
 	template<class R, class... Args>
 	bool GAGroup<R(Args...)>::flushStopFlag()
 	{
-		// Stop Code : -1-Î´¿ªÊ¼µü´ú; 0-ÕıÔÚµü´ú; 1-´ïµ½×î´óµü´ú´ÎÊı; 2-´ïµ½×î´óµü´úÊ±¼ä; 3-×îÓÅ½âÊÕÁ²ÓÚÎÈ¶¨Öµ; 4-ÈËÎªÍ£Ö¹µü´ú
+		// Stop Code : -1-æœªå¼€å§‹è¿­ä»£; 0-æ­£åœ¨è¿­ä»£; 1-è¾¾åˆ°æœ€å¤§è¿­ä»£æ¬¡æ•°; 2-è¾¾åˆ°æœ€å¤§è¿­ä»£æ—¶é—´; 3-æœ€ä¼˜è§£æ”¶æ•›äºç¨³å®šå€¼; 4-äººä¸ºåœæ­¢è¿­ä»£
 
-		// ÊÇ·ñ´ïµ½×î´óµü´ú´ÎÊı
+		// æ˜¯å¦è¾¾åˆ°æœ€å¤§è¿­ä»£æ¬¡æ•°
 		if (group_state.setMaxGeneFlag && group_state.nGene >= group_state.maxGene)
 		{
 			group_state.stopCode = 1;
@@ -861,13 +861,13 @@ namespace opt
 			group_state.stopCode = 2;
 		}
 
-		// ÊÇ·ñÁ¬Ğø5´Î×îÓÅ½âµÄ²¨¶¯Ğ¡ÓÚÍ£Ö¹Îó²î
+		// æ˜¯å¦è¿ç»­5æ¬¡æœ€ä¼˜è§£çš„æ³¢åŠ¨å°äºåœæ­¢è¯¯å·®
 		if (group_state.setStopTolFlag && group_state.count == group_state.converCount)
 		{
 			group_state.stopCode = 3;
 		}
 
-		// ¸ù¾İstop codeÅĞ¶ÏÖÖÈºÊÇ·ñÍ£Ö¹µü´ú
+		// æ ¹æ®stop codeåˆ¤æ–­ç§ç¾¤æ˜¯å¦åœæ­¢è¿­ä»£
 		if (group_state.stopCode != -1 && group_state.stopCode != 0)
 		{
 			group_state.stopFlag = true;

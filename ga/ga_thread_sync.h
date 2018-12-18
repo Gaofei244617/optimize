@@ -1,4 +1,4 @@
-#ifndef _GA_THREAD_SYNC_
+ï»¿#ifndef _GA_THREAD_SYNC_
 #define _GA_THREAD_SYNC_
 
 #include <thread>
@@ -13,26 +13,26 @@ namespace opt
 {
 	template<class F> class GAGroup;
 
-	// GAÏß³ÌÍ¬²½Æ÷
+	// GAçº¿ç¨‹åŒæ­¥å™¨
 	template<class R, class... Args>
 	class GAThreadSync
 	{
 		friend class GAGroup<R(Args...)>;
 
 	private:
-		std::mutex mtx;                                   // »¥³âÁ¿
-		std::condition_variable cv;                       // Ìõ¼ş±äÁ¿, ÓÃÓÚÏß³ÌÍ¬²½
-		bool crossReady;                                  // ½»²æ²Ù×÷±êÖ¾
-		bool mutReady;                                    // ±äÒì²Ù×÷±êÖ¾
-		bool selectReady;                                 // Ñ¡Ôñ²Ù×÷±êÖ¾
-		int threadNum;                                    // ²¢ĞĞ¼ÆËãÊ¹ÓÃµÄÏß³ÌÊı
-		bool_array cross_flag;                            // ²¢ĞĞ¼ÆËã: ½»²æÏß³Ì×´Ì¬±êÖ¾
-		bool_array mut_flag;                              // ²¢ĞĞ¼ÆËã: ±äÒìÏß³Ì×´Ì¬±êÖ¾
-		bool_array sel_flag;                              // ²¢ĞĞ¼ÆËã: Ñ¡ÔñÏß³Ì×´Ì¬±êÖ¾
-		GAGroup<R(Args...)>* ga;                          // Í¬²½Æ÷¹ØÁªµÄGAÖÖÈº
+		std::mutex mtx;                                   // äº’æ–¥é‡
+		std::condition_variable cv;                       // æ¡ä»¶å˜é‡, ç”¨äºçº¿ç¨‹åŒæ­¥
+		bool crossReady;                                  // äº¤å‰æ“ä½œæ ‡å¿—
+		bool mutReady;                                    // å˜å¼‚æ“ä½œæ ‡å¿—
+		bool selectReady;                                 // é€‰æ‹©æ“ä½œæ ‡å¿—
+		std::size_t threadNum;                            // å¹¶è¡Œè®¡ç®—ä½¿ç”¨çš„çº¿ç¨‹æ•°
+		bool_array cross_flag;                            // å¹¶è¡Œè®¡ç®—: äº¤å‰çº¿ç¨‹çŠ¶æ€æ ‡å¿—
+		bool_array mut_flag;                              // å¹¶è¡Œè®¡ç®—: å˜å¼‚çº¿ç¨‹çŠ¶æ€æ ‡å¿—
+		bool_array sel_flag;                              // å¹¶è¡Œè®¡ç®—: é€‰æ‹©çº¿ç¨‹çŠ¶æ€æ ‡å¿—
+		GAGroup<R(Args...)>* ga;                          // åŒæ­¥å™¨å…³è”çš„GAç§ç¾¤
 
 	public:
-		// ³£¹æ¹¹Ôì
+		// å¸¸è§„æ„é€ 
 		GAThreadSync(GAGroup<R(Args...)>* ptr)
 			:crossReady(false),
 			mutReady(false),
@@ -44,7 +44,7 @@ namespace opt
 			ga(ptr)
 		{}
 
-		// ¸´ÖÆ¹¹Ôì
+		// å¤åˆ¶æ„é€ 
 		GAThreadSync(const GAThreadSync& other, GAGroup<R(Args...)>* ptr)
 			:crossReady(other.crossReady),
 			mutReady(other.mutReady),
@@ -56,20 +56,20 @@ namespace opt
 			ga(ptr)
 		{}
 
-		// ÒÆ¶¯¹¹Ôì
+		// ç§»åŠ¨æ„é€ 
 		GAThreadSync(GAThreadSync&& other) = delete;
 
-		void setThreadNum(const int N);	            // ÉèÖÃÏß³ÌÊıÁ¿
+		void setThreadNum(const std::size_t N);	    // è®¾ç½®çº¿ç¨‹æ•°é‡
 
-		void cross_sync(const int thread_seq);		// "½»²æ"Ïß³ÌÍ¬²½
-		void mutate_sync(const int thread_seq);		// "±äÒì"Ïß³ÌÍ¬²½
-		void select_sync(const int thread_seq);		// "Ñ¡Ôñ"Ïß³ÌÍ¬²½
+		void cross_sync(const int thread_seq);		// "äº¤å‰"çº¿ç¨‹åŒæ­¥
+		void mutate_sync(const int thread_seq);		// "å˜å¼‚"çº¿ç¨‹åŒæ­¥
+		void select_sync(const int thread_seq);		// "é€‰æ‹©"çº¿ç¨‹åŒæ­¥
 	};
 
 	///////////////////////////////////////////////////////////////////////////////////////////
-	// ÉèÖÃÏß³ÌÊıÁ¿
+	// è®¾ç½®çº¿ç¨‹æ•°é‡
 	template<class R, class... Args>
-	void GAThreadSync<R, Args...>::setThreadNum(const int N)
+	void GAThreadSync<R, Args...>::setThreadNum(const std::size_t N)
 	{
 		threadNum = N;
 		cross_flag.set_length(N);
@@ -77,17 +77,17 @@ namespace opt
 		sel_flag.set_length(N);
 	}
 
-	// ¡°½»²æ¡±Ïß³ÌÍ¬²½
+	// â€œäº¤å‰â€çº¿ç¨‹åŒæ­¥
 	template<class R, class... Args>
 	void GAThreadSync<R, Args...>::cross_sync(const int thread_seq)
 	{
 		cross_flag[thread_seq] = true;
 		selectReady = false;
 
-		// Èô½»²æÏß³Ì×éÈ«²¿ÔËĞĞÍê
+		// è‹¥äº¤å‰çº¿ç¨‹ç»„å…¨éƒ¨è¿è¡Œå®Œ
 		if (cross_flag.is_all_true())
 		{
-			// ½»»»¸öÌåÊı×é
+			// äº¤æ¢ä¸ªä½“æ•°ç»„
 			ga->switchIndivArray();
 
 			cross_flag.set_all(false);
@@ -100,14 +100,14 @@ namespace opt
 		}
 	}
 
-	// "±äÒì"Ïß³ÌÍ¬²½
+	// "å˜å¼‚"çº¿ç¨‹åŒæ­¥
 	template<class R, class... Args>
 	void GAThreadSync<R, Args...>::mutate_sync(const int thread_seq)
 	{
 		mut_flag[thread_seq] = true;
 		crossReady = false;
 
-		// Èô±äÒìÏß³Ì×éÈ«²¿ÔËĞĞÍê
+		// è‹¥å˜å¼‚çº¿ç¨‹ç»„å…¨éƒ¨è¿è¡Œå®Œ
 		if (mut_flag.is_all_true())
 		{
 			mut_flag.set_all(false);
@@ -120,20 +120,20 @@ namespace opt
 		}
 	}
 
-	// "Ñ¡Ôñ"Ïß³ÌÍ¬²½
+	// "é€‰æ‹©"çº¿ç¨‹åŒæ­¥
 	template<class R, class... Args>
 	void GAThreadSync<R, Args...>::select_sync(const int thread_seq)
 	{
 		sel_flag[thread_seq] = true;
 		mutReady = false;
 
-		// ÈôÑ¡ÔñÏß³Ì×éÈ«²¿ÔËĞĞÍê
+		// è‹¥é€‰æ‹©çº¿ç¨‹ç»„å…¨éƒ¨è¿è¡Œå®Œ
 		if (sel_flag.is_all_true())
 		{
-			// ÌÔÌ­×Ó´ú×î²î¸öÌå, ÓÃ¸¸´ú×îÓÅ¸öÌåÈ¡´ú
+			// æ·˜æ±°å­ä»£æœ€å·®ä¸ªä½“, ç”¨çˆ¶ä»£æœ€ä¼˜ä¸ªä½“å–ä»£
 			ga->indivs[ga->group_state.worstIndex] = ga->bestIndivs.back();
 
-			// Èç¹û±äÒìºó³öÏÖ¸üÓÅ¸öÌå
+			// å¦‚æœå˜å¼‚åå‡ºç°æ›´ä¼˜ä¸ªä½“
 			if (ga->indivs[ga->group_state.bestIndex].fitness >= ga->bestIndivs.back().fitness)
 			{
 				ga->bestIndivs.push_back(ga->indivs[ga->group_state.bestIndex]);
@@ -143,10 +143,10 @@ namespace opt
 				ga->bestIndivs.push_back(ga->bestIndivs.back());
 			}
 
-			// ¸üĞÂÂÖÅÌ¶Ä¿Ì¶ÈÏß
+			// æ›´æ–°è½®ç›˜èµŒåˆ»åº¦çº¿
 			ga->updateRoulette(ga->groupSize);
 
-			// ¸üĞÂGAÖÖÈºÍ£Ö¹×´Ì¬
+			// æ›´æ–°GAç§ç¾¤åœæ­¢çŠ¶æ€
 			ga->updateStopState();
 
 			ga->flushStopFlag();
@@ -160,14 +160,14 @@ namespace opt
 				ga->group_state.sleep.result = true;
 			}
 
-			// µ÷ÓÃÍâ²¿¼àÌıº¯Êı
+			// è°ƒç”¨å¤–éƒ¨ç›‘å¬å‡½æ•°
 			if (ga->monitor)
 			{
 				GA_Info ga_info(ga->group_state.time, ga->group_state.nGene, ga->bestIndivs.back());
 				ga->monitor(ga_info);
 			}
 
-			// ¸üĞÂ×Ó´ú¸öÌåÊıÁ¿
+			// æ›´æ–°å­ä»£ä¸ªä½“æ•°é‡
 			if (ga->resize)
 			{
 				std::size_t count = ga->resize(ga->group_state.nGene + 1);

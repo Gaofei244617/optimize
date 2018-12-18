@@ -1,4 +1,4 @@
-#ifndef _PSO_H_
+ï»¿#ifndef _PSO_H_
 #define _PSO_H_
 
 #include <chrono>
@@ -9,70 +9,76 @@
 #include "index_seq.h"
 #include "pso_info.h"
 #include "range_random.h"
+#include "pso_thread_sync.h"
 
 namespace opt
 {
 	template<class F> class PSO;
 
-	// PSOÀà£¬ĞèÌá¹©ÊÊÓ¦¶Èº¯ÊıÀàĞÍ
+	// PSOç±»ï¼Œéœ€æä¾›é€‚åº”åº¦å‡½æ•°ç±»å‹
 	template<class R, class... Args>
 	class PSO<R(Args...)>
 	{
 		using Bound = std::initializer_list<std::initializer_list<double>>;
 
 	private:
-		std::size_t groupSize;                                                // Á£×ÓÊıÁ¿
-		std::size_t nVars;                                                    // ÊÊÓ¦¶Èº¯Êı°üº¬µÄ±äÁ¿¸öÊı
-		PSO_Individual* indivs;                                               // Á£×ÓÈºÊı×é
-		R(*fitFunc)(Args...);                                                 // ÊÊÓ¦¶Èº¯ÊıÖ¸Õë
-		std::function<double(std::size_t)> reweight;                          // ÖÖÈºÊıÁ¿¶¯Ì¬µ÷Õû
-		std::function<void(const PSO_Info&)> monitor;                         // Íâ²¿¼àÌıÆ÷
-		double(*bound)[2];                                                    // Ã¿¸ö±äÁ¿µÄÇø¼ä, ÒÔÊı×éÖ¸Õë±íÊ¾
-		std::vector<PSO_Individual> bestIndivs;                               // ¼ÇÂ¼Ã¿´Îµü´úµÄ×îÓÅ¸öÌå
-		PSO_Individual best_indiv;                                            // ×îÓÅÁ£×Ó
-		PSO_State group_state;                                                // Á£×ÓÈº×´Ì¬
+		std::size_t groupSize;                                                // ç²’å­æ•°é‡
+		std::size_t nVars;                                                    // é€‚åº”åº¦å‡½æ•°åŒ…å«çš„å˜é‡ä¸ªæ•°
+		PSO_Individual* indivs;                                               // ç²’å­ç¾¤æ•°ç»„
+		R(*fitFunc)(Args...);                                                 // é€‚åº”åº¦å‡½æ•°æŒ‡é’ˆ
+		std::function<double(std::size_t)> reweight;                          // ç§ç¾¤æ•°é‡åŠ¨æ€è°ƒæ•´
+		std::function<void(const PSO_Info&)> monitor;                         // å¤–éƒ¨ç›‘å¬å™¨
+		double(*bound)[2];                                                    // æ¯ä¸ªå˜é‡çš„åŒºé—´, ä»¥æ•°ç»„æŒ‡é’ˆè¡¨ç¤º
+		std::vector<PSO_Individual> bestIndivs;                               // è®°å½•æ¯æ¬¡è¿­ä»£çš„æœ€ä¼˜ä¸ªä½“
+		PSO_Individual best_indiv;                                            // æœ€ä¼˜ç²’å­
+		PSO_State group_state;                                                // ç²’å­ç¾¤çŠ¶æ€
+
+		std::unique_ptr< PSOThreadSync<R, Args...> > thread_sync;             // çº¿ç¨‹åŒæ­¥å™¨
+
 
 	public:
-		PSO(R(*f)(Args...), const std::size_t size = 1000);                   // ¹¹Ôìº¯Êı£¬¹¹ÔìÒ»¸öÖÖÈº£¬ĞèÌá¹©ÊÊÓ¦¶Èº¯Êı¼°ÖÖÈºÊıÁ¿
-		PSO(PSO<R(Args...)>& other);                                          // ¿½±´¹¹Ôì
-		PSO(PSO<R(Args...)>&& other);                                         // ÒÆ¶¯¹¹Ôì
+		PSO(R(*f)(Args...), const std::size_t size = 1000);                   // æ„é€ å‡½æ•°ï¼Œæ„é€ ä¸€ä¸ªç§ç¾¤ï¼Œéœ€æä¾›é€‚åº”åº¦å‡½æ•°åŠç§ç¾¤æ•°é‡
+		PSO(PSO<R(Args...)>& other);                                          // æ‹·è´æ„é€ 
+		PSO(PSO<R(Args...)>&& other);                                         // ç§»åŠ¨æ„é€ 
 		PSO<R(Args...)>& operator=(const PSO<R(Args...)>& other) = delete;
 		PSO<R(Args...)>& operator=(PSO<R(Args...)>&& other) = delete;
 		~PSO();
 
-		void setBoundary(double(*b)[2]);                                      // ÉèÖÃ±äÁ¿Çø¼ä
-		void setBoundary(const Bound& b);                                     // ÉèÖÃ±äÁ¿Çø¼ä
-		void setMaxGeneration(const unsigned int N);                          // ÉèÖÃ×î´óµü´ú´ÎÊı
-		void setMaxRuntime(const Second& time);                               // ÉèÖÃ×î´óÔËĞĞÊ±¼ä£¨Ãë£©
-		void setStopTol(const long double t, const unsigned int N = 5);       // ÉèÖÃ×îÓÅ½âÍ£Ö¹Îó²î
-		void setMonitor(const std::function<void(const PSO_Info&)>&);         // ÉèÖÃÍâ²¿¼àÌıº¯Êı
-		void setReweight(const std::function<std::size_t(std::size_t)>&);     // ÖÖÈºÊıÁ¿µ÷Õûº¯Êı
+		void setBoundary(double(*b)[2]);                                      // è®¾ç½®å˜é‡åŒºé—´
+		void setBoundary(const Bound& b);                                     // è®¾ç½®å˜é‡åŒºé—´
+		void setMaxGeneration(const unsigned int N);                          // è®¾ç½®æœ€å¤§è¿­ä»£æ¬¡æ•°
+		void setMaxRuntime(const Second& time);                               // è®¾ç½®æœ€å¤§è¿è¡Œæ—¶é—´ï¼ˆç§’ï¼‰
+		void setStopTol(const long double t, const unsigned int N = 5);       // è®¾ç½®æœ€ä¼˜è§£åœæ­¢è¯¯å·®
+		void setThreadNum(const std::size_t NUM);                             // è®¾ç½®å¹¶è¡Œè®¡ç®—çš„çº¿ç¨‹æ•°ï¼Œé»˜è®¤ä¸º1
+		void setMonitor(const std::function<void(const PSO_Info&)>&);         // è®¾ç½®å¤–éƒ¨ç›‘å¬å‡½æ•°
+		void setReweight(const std::function<std::size_t(std::size_t)>&);     // ç§ç¾¤æ•°é‡è°ƒæ•´å‡½æ•°
 
-		int getNVars()const;                                                  // »ñÈ¡ÖÖÈº±äÁ¿¸öÊı
-		int getGeneration()const;                                             // »ñµÃµ±Ç°ÖÖÈº´úÊı
-		int getGroupSize()const;                                              // »ñµÃµ±Ç°ÖÖÈº¸öÌåÊıÁ¿
-		std::vector<PSO_Individual> getBestIndivs();                          // »ñÈ¡Àú´Îµü´úµÄ×îÓÅ½â
-		int getStopCode();                                                    // »ñÈ¡Stop Code
+		int getNVars()const;                                                  // è·å–ç§ç¾¤å˜é‡ä¸ªæ•°
+		int getGeneration()const;                                             // è·å¾—å½“å‰ç§ç¾¤ä»£æ•°
+		int getGroupSize()const;                                              // è·å¾—å½“å‰ç§ç¾¤ä¸ªä½“æ•°é‡
+		std::vector<PSO_Individual> getBestIndivs();                          // è·å–å†æ¬¡è¿­ä»£çš„æœ€ä¼˜è§£
+		int getStopCode();                                                    // è·å–Stop Code
 
-		void initGroup(const std::vector<PSO_Individual>& indivs = std::vector<PSO_Individual>());    // ³õÊ¼»¯Á£×ÓÈº
-		bool start();                                                         // ¿ªÊ¼µü´ú½ø»¯
-		void pause();                                                         // ÔİÍ£(Îª±£Ö¤Êı¾İÒ»ÖÂĞÔ£¬ĞèÔÚÒ»´ÎÍêÕûµü´úºópause)
-		void proceed();                                                       // ¼ÌĞøµü´ú
-		void kill();                                                          // ½áÊøµü´ú
-		PSO<R(Args...)> clone();                                              // ¿ËÂ¡µ±Ç°ÖÖÈº
+		void initGroup(const std::vector<PSO_Individual>& indivs = std::vector<PSO_Individual>());    // åˆå§‹åŒ–ç²’å­ç¾¤
+		bool start();                                                         // å¼€å§‹è¿­ä»£è¿›åŒ–
+		void pause();                                                         // æš‚åœ(ä¸ºä¿è¯æ•°æ®ä¸€è‡´æ€§ï¼Œéœ€åœ¨ä¸€æ¬¡å®Œæ•´è¿­ä»£åpause)
+		void proceed();                                                       // ç»§ç»­è¿­ä»£
+		void kill();                                                          // ç»“æŸè¿­ä»£
+		PSO<R(Args...)> clone();                                              // å…‹éš†å½“å‰ç§ç¾¤
 
 	private:
 		template<std::size_t... I>
-		R callFitFunc(double* args, const opt::index_seq<I...>&);              // µ÷ÓÃÊÊÓ¦¶Èº¯ÊıÊı
+		R callFitFunc(double* args, const opt::index_seq<I...>&);              // è°ƒç”¨é€‚åº”åº¦å‡½æ•°æ•°
 
-		std::size_t findBest();                                                // Ñ°ÕÒ×îÓÅ¸öÌå
-		void iter();                                                           // ½øĞĞÒ»´Îµü´ú
-		void updateStopState();                                                // ¸üĞÂÁ£×ÓÈºÍ£Ö¹×´Ì¬
+		std::size_t findBest();                                                // å¯»æ‰¾æœ€ä¼˜ä¸ªä½“
+		void iter();                                                           // è¿›è¡Œä¸€æ¬¡è¿­ä»£
+		void updateStopState();                                                // æ›´æ–°ç²’å­ç¾¤åœæ­¢çŠ¶æ€
 		void run();
+		bool flushStopFlag();                                                  // åˆ¤æ–­æ˜¯å¦ç»“æŸè¿­ä»£
 	};
 
-	/******************************************* ¹¹ÔìÓëÎö¹¹ ***********************************************************/
-	// ¹¹Ôìº¯Êı£¬ĞèÌá¹©¹©ÊÊÓ¦¶Èº¯Êı¼°Á£×ÓÈºÊıÁ¿
+	/******************************************* æ„é€ ä¸ææ„ ***********************************************************/
+	// æ„é€ å‡½æ•°ï¼Œéœ€æä¾›ä¾›é€‚åº”åº¦å‡½æ•°åŠç²’å­ç¾¤æ•°é‡
 	template<class R, class... Args>
 	PSO<R(Args...)>::PSO(R(*f)(Args...), const std::size_t size)
 		:groupSize(size),
@@ -80,18 +86,19 @@ namespace opt
 		indivs(new PSO_Individual[groupSize]),
 		fitFunc(f),
 		reweight([](std::size_t n) {return 0.5; }),
-		bound(nullptr)
+		bound(nullptr),
+		thread_sync(new PSOThreadSync<R, Args...>(this))
 	{
 		for (std::size_t i = 0; i < groupSize; i++)
 		{
 			indivs[i] = PSO_Individual(nVars);
 		}
 
-		// ±äÁ¿Çø¼ä
+		// å˜é‡åŒºé—´
 		bound = new double[nVars][2];
 	}
 
-	// ¸´ÖÆ¹¹Ôì
+	// å¤åˆ¶æ„é€ 
 	template<class R, class... Args>
 	PSO<R(Args...)>::PSO(PSO<R(Args...)>& other)
 		:groupSize(other.groupSize),
@@ -101,7 +108,8 @@ namespace opt
 		monitor(other.monitor),
 		reweight(other.reweight),
 		bound(nullptr),
-		bestIndivs()
+		bestIndivs(),
+		thread_sync(nullptr)
 	{
 		other.pause();
 
@@ -110,7 +118,7 @@ namespace opt
 			indivs[i] = (other.indivs)[i];
 		}
 
-		// ±äÁ¿Çø¼ä
+		// å˜é‡åŒºé—´
 		bound = new double[nVars][2];
 		for (std::size_t i = 0; i < nVars; i++)
 		{
@@ -119,11 +127,11 @@ namespace opt
 		}
 
 		this->bestIndivs = other.bestIndivs;
-
+		thread_sync.reset(new PSOThreadSync<R, Args...>(*(other.thread_sync), this));
 		other.proceed();
 	}
 
-	// ÒÆ¶¯¹¹Ôì
+	// ç§»åŠ¨æ„é€ 
 	template<class R, class... Args>
 	PSO<R(Args...)>::PSO(PSO<R(Args...)>&& other)
 		:groupSize(other.groupSize),
@@ -133,17 +141,20 @@ namespace opt
 		monitor(other.monitor),
 		reweight(other.reweight),
 		bound(other.bound),
-		bestIndivs()
+		bestIndivs(),
+		thread_sync(nullptr)
 	{
-		other.kill();        // ÖÕÖ¹ÖÖÈºµü´ú
+		other.kill();        // ç»ˆæ­¢ç§ç¾¤è¿­ä»£
 
 		other.indivs = nullptr;
 		other.bound = nullptr;
 
 		this->bestIndivs = std::move(other.bestIndivs);
+
+		thread_sync.reset(new PSOThreadSync<R, Args...>(*(other.thread_sync), this));
 	}
 
-	// Îö¹¹º¯Êı
+	// ææ„å‡½æ•°
 	template<class R, class... Args>
 	PSO<R(Args...)>::~PSO()
 	{
@@ -152,32 +163,32 @@ namespace opt
 	}
 
 	/**************************************** Setter ************************************************************/
-	// ÉèÖÃËùÓĞ±äÁ¿Çø¼ä,´«Èë³õÊ¼»¯ÁĞ±í
+	// è®¾ç½®æ‰€æœ‰å˜é‡åŒºé—´,ä¼ å…¥åˆå§‹åŒ–åˆ—è¡¨
 	template<class R, class... Args>
 	void PSO<R(Args...)>::setBoundary(const Bound& b)
 	{
 		const std::size_t len = b.size();
 		for (std::size_t i = 0; i < len; i++)
 		{
-			bound[i][0] = *((*(b.begin() + i)).begin());         // ÏÂ±ß½ç
-			bound[i][1] = *((*(b.begin() + i)).begin() + 1);     // ÉÏ±ß½ç
+			bound[i][0] = *((*(b.begin() + i)).begin());         // ä¸‹è¾¹ç•Œ
+			bound[i][1] = *((*(b.begin() + i)).begin() + 1);     // ä¸Šè¾¹ç•Œ
 		}
 		group_state.setBoundFlag = true;
 	}
 
-	// ÉèÖÃËùÓĞ±äÁ¿Çø¼ä,´«ÈëÊı×éÖ¸Õë
+	// è®¾ç½®æ‰€æœ‰å˜é‡åŒºé—´,ä¼ å…¥æ•°ç»„æŒ‡é’ˆ
 	template<class R, class... Args>
 	void PSO<R(Args...)>::setBoundary(double(*b)[2])
 	{
 		for (int i = 0; i < nVars; i++)
 		{
-			bound[i][0] = b[i][0];       // ÏÂ±ß½ç
-			bound[i][1] = b[i][1];       // ÉÏ±ß½ç
+			bound[i][0] = b[i][0];       // ä¸‹è¾¹ç•Œ
+			bound[i][1] = b[i][1];       // ä¸Šè¾¹ç•Œ
 		}
 		group_state.setBoundFlag = true;
 	}
 
-	// ÉèÖÃ×î´óµü´ú´ÎÊı
+	// è®¾ç½®æœ€å¤§è¿­ä»£æ¬¡æ•°
 	template<class R, class... Args>
 	void PSO<R(Args...)>::setMaxGeneration(const unsigned int N)
 	{
@@ -185,7 +196,7 @@ namespace opt
 		group_state.maxGene = N;
 	}
 
-	// ÉèÖÃ×î´óÔËĞĞÊ±¼ä£¨Ãë£©
+	// è®¾ç½®æœ€å¤§è¿è¡Œæ—¶é—´ï¼ˆç§’ï¼‰
 	template<class R, class... Args>
 	void PSO<R(Args...)>::setMaxRuntime(const Second& time)
 	{
@@ -193,7 +204,7 @@ namespace opt
 		group_state.maxRuntime = time;
 	}
 
-	// ÉèÖÃ×îÓÅ½âÍ£Ö¹Îó²î
+	// è®¾ç½®æœ€ä¼˜è§£åœæ­¢è¯¯å·®
 	template<class R, class... Args>
 	void PSO<R(Args...)>::setStopTol(const long double t, const unsigned int N)
 	{
@@ -202,14 +213,29 @@ namespace opt
 		group_state.stopTol = t;
 	}
 
-	// ÉèÖÃÍâ²¿¼àÌıº¯Êı
+	// è®¾ç½®çº¿ç¨‹æ•°é‡
+	template<class R, class ...Args>
+	void PSO<R(Args...)>::setThreadNum(const std::size_t NUM)
+	{
+		if (NUM > 1)
+		{
+			thread_sync->setThreadNum(NUM);
+		}
+		if (NUM < 1)
+		{
+			throw std::string("Thread number error.");
+		}
+
+	}
+
+	// è®¾ç½®å¤–éƒ¨ç›‘å¬å‡½æ•°
 	template<class R, class... Args>
 	void PSO<R(Args...)>::setMonitor(const std::function<void(const PSO_Info&)>& func)
 	{
 		this->monitor = func;
 	}
 
-	// ÖÖÈºÊıÁ¿µ÷Õûº¯Êı
+	// ç§ç¾¤æ•°é‡è°ƒæ•´å‡½æ•°
 	template<class R, class... Args>
 	void PSO<R(Args...)>::setReweight(const std::function<std::size_t(std::size_t)>& func)
 	{
@@ -217,49 +243,49 @@ namespace opt
 	}
 
 	/**************************************Getter*********************************************************************/
-	// »ñÈ¡ÖÖÈº±äÁ¿¸öÊı
+	// è·å–ç§ç¾¤å˜é‡ä¸ªæ•°
 	template<class R, class... Args>
 	int PSO<R(Args...)>::getNVars()const
 	{
 		return nVars;
 	}
 
-	// »ñÈ¡Ç°ÖÖÈº´úÊı
+	// è·å–å‰ç§ç¾¤ä»£æ•°
 	template<class R, class... Args>
 	int PSO<R(Args...)>::getGeneration()const
 	{
 		return group_state.nGene;
 	}
 
-	// »ñÈ¡µ±Ç°ÖÖÈº¸öÌåÊıÁ¿
+	// è·å–å½“å‰ç§ç¾¤ä¸ªä½“æ•°é‡
 	template<class R, class... Args>
 	int PSO<R(Args...)>::getGroupSize()const
 	{
 		return groupSize;
 	}
 
-	// »ñÈ¡Àú´Îµü´úµÄ×îÓÅ½â
+	// è·å–å†æ¬¡è¿­ä»£çš„æœ€ä¼˜è§£
 	template<class R, class... Args>
 	std::vector<PSO_Individual> PSO<R(Args...)>::getBestIndivs()
 	{
 		return bestIndivs;
 	}
 
-	// »ñÈ¡Í£Ö¹´úÂë
+	// è·å–åœæ­¢ä»£ç 
 	template<class R, class... Args>
 	int PSO<R(Args...)>::getStopCode()
 	{
 		return group_state.stopCode;
 	}
 
-	// ³õÊ¼»¯Á£×ÓÈº
+	// åˆå§‹åŒ–ç²’å­ç¾¤
 	template<class R, class... Args>
 	void PSO<R(Args...)>::initGroup(const std::vector<PSO_Individual>& init_indivs)
 	{
-		// ³õÊ¼»¯Ç°ĞèÒª±£Ö¤ÒÑÉèÖÃ»ùÒò±äÁ¿Çø¼ä
+		// åˆå§‹åŒ–å‰éœ€è¦ä¿è¯å·²è®¾ç½®åŸºå› å˜é‡åŒºé—´
 		if (group_state.setBoundFlag)
 		{
-			// 1.³õÊ¼»¯Ã¿Ò»¸öÁ£×Ó
+			// 1.åˆå§‹åŒ–æ¯ä¸€ä¸ªç²’å­
 			for (std::size_t i = 0; i < init_indivs.size(); i++)
 			{
 				indivs[i] = init_indivs[i];
@@ -267,37 +293,37 @@ namespace opt
 			}
 			for (std::size_t i = init_indivs.size(); i < groupSize; i++)
 			{
-				// ÉèÖÃ¸öÌåÎ»ÖÃ
+				// è®¾ç½®ä¸ªä½“ä½ç½®
 				for (std::size_t j = 0; j < nVars; j++)
 				{
 					indivs[i].xs[j] = random_real(bound[j][0], bound[j][1]);
 					indivs[i].best_xs[j] = indivs[i].xs[j];
 				}
-				// ¸öÌåÊÊÓ¦¶È
+				// ä¸ªä½“é€‚åº”åº¦
 				indivs[i].fitness = callFitFunc(indivs[i].xs, opt::make_index_seq<sizeof...(Args)>());
 			}
 
-			// 2.Ñ°ÕÒ×îÓÅ¸öÌå
+			// 2.å¯»æ‰¾æœ€ä¼˜ä¸ªä½“
 			std::size_t bestIndex = this->findBest();
-			bestIndivs.push_back(indivs[bestIndex]);                     // ¼ÇÂ¼×îÓÅ½â
-			best_indiv = indivs[bestIndex];                              // ×îÓÅ¸öÌå
+			bestIndivs.push_back(indivs[bestIndex]);                     // è®°å½•æœ€ä¼˜è§£
+			best_indiv = indivs[bestIndex];                              // æœ€ä¼˜ä¸ªä½“
 
-			// 3.ÉèÖÃÁ£×Ó·ÉĞĞËÙ¶È			
-			double c2 = 2;   // Ñ§Ï°Òò×Ó
+			// 3.è®¾ç½®ç²’å­é£è¡Œé€Ÿåº¦
+			double c2 = 2;   // å­¦ä¹ å› å­
 
-			// ¼ÆËã¸÷¸öÁ£×Ó·ÉĞĞËÙ¶È£¬³õÊ¼»¯Á£×ÓËÙ¶ÈÃ»ÓĞ¹ßĞÔ²¿·ÖºÍ×ÔÉí²¿·Ö£¬Ö»ÓĞÉç»á²¿·Ö
+			// è®¡ç®—å„ä¸ªç²’å­é£è¡Œé€Ÿåº¦ï¼Œåˆå§‹åŒ–ç²’å­é€Ÿåº¦æ²¡æœ‰æƒ¯æ€§éƒ¨åˆ†å’Œè‡ªèº«éƒ¨åˆ†ï¼Œåªæœ‰ç¤¾ä¼šéƒ¨åˆ†
 			for (int i = 0; i < groupSize; i++)
 			{
-				// Ëæ»úÊı
+				// éšæœºæ•°
 				double r2 = opt::random_real(0, 1);
 				for (int j = 0; j < nVars; j++)
 				{
 					indivs[i].vs[j] = c2 * r2 * (indivs[bestIndex].xs[j] - indivs[i].xs[j]);
 
-					// ×î´ó·ÉĞĞËÙ¶È
+					// æœ€å¤§é£è¡Œé€Ÿåº¦
 					double V_max = 0.15 * (bound[j][1] - bound[j][0]);
 
-					// ¼ì²éËÙ¶ÈÊÇ·ñ¹ı´ó
+					// æ£€æŸ¥é€Ÿåº¦æ˜¯å¦è¿‡å¤§
 					if (indivs[i].vs[j] > V_max)
 					{
 						indivs[i].vs[j] = V_max;
@@ -309,7 +335,7 @@ namespace opt
 				}
 			}
 
-			// 4.ÉèÖÃ³õÊ¼»¯±êÖ¾Î»
+			// 4.è®¾ç½®åˆå§‹åŒ–æ ‡å¿—ä½
 			group_state.initFlag = true;
 		}
 		else
@@ -318,7 +344,7 @@ namespace opt
 		}
 	}
 
-	// Ñ°ÕÒ×îÓÅ¸öÌå
+	// å¯»æ‰¾æœ€ä¼˜ä¸ªä½“
 	template<class R, class ...Args>
 	std::size_t PSO<R(Args...)>::findBest()
 	{
@@ -333,26 +359,26 @@ namespace opt
 		return index;
 	}
 
-	// ½øĞĞÒ»´Îµü´ú
+	// è¿›è¡Œä¸€æ¬¡è¿­ä»£
 	template<class R, class ...Args>
 	void PSO<R(Args...)>::iter()
 	{
-		double weight = reweight(group_state.nGene + 1);         // ¹ßĞÔÏµÊı
+		double weight = reweight(group_state.nGene + 1);         // æƒ¯æ€§ç³»æ•°
 
-		double c1 = 1.49618;                                     // Ñ§Ï°Òò×Ó
+		double c1 = 1.49618;                                     // å­¦ä¹ å› å­
 		double c2 = 1.49618;
 
 		double r1 = 0.5;
 		double r2 = 0.5;
 
-		double V_max = 0;                                        // ×î´ó·ÉĞĞËÙ¶È
+		double V_max = 0;                                        // æœ€å¤§é£è¡Œé€Ÿåº¦
 
 		double temp = 0;
 		double temp_1 = 0;
 		double temp_2 = 0;
 		double temp_3 = 0;
 
-		// ¸üĞÂËÙ¶È
+		// æ›´æ–°é€Ÿåº¦
 		for (int j = 0; j < nVars; j++)
 		{
 			V_max = 0.15 * (bound[j][1] - bound[j][0]);
@@ -362,11 +388,11 @@ namespace opt
 				r1 = opt::random_real(0, 1);
 				r2 = opt::random_real(0, 1);
 
-				temp_1 = weight * indivs[i].vs[j];                                // ¹ßĞÔ²¿·Ö
-				temp_2 = c1 * r1 * (indivs[i].best_xs[j] - indivs[i].xs[j]);      // ×ÔÎÒ²¿·Ö
-				temp_3 = c2 * r2 * (best_indiv.xs[j] - indivs[i].xs[j]);          // Éç»á²¿·Ö
+				temp_1 = weight * indivs[i].vs[j];                                // æƒ¯æ€§éƒ¨åˆ†
+				temp_2 = c1 * r1 * (indivs[i].best_xs[j] - indivs[i].xs[j]);      // è‡ªæˆ‘éƒ¨åˆ†
+				temp_3 = c2 * r2 * (best_indiv.xs[j] - indivs[i].xs[j]);          // ç¤¾ä¼šéƒ¨åˆ†
 
-				temp = temp_1 + temp_2 + temp_3;                                  // ·ÉĞĞËÙ¶È
+				temp = temp_1 + temp_2 + temp_3;                                  // é£è¡Œé€Ÿåº¦
 
 				if (temp > V_max)
 				{
@@ -377,7 +403,7 @@ namespace opt
 					temp = -V_max;
 				}
 
-				// ¸üĞÂÎ»ÖÃ
+				// æ›´æ–°ä½ç½®
 				indivs[i].xs[j] = indivs[i].xs[j] + indivs[i].vs[j];
 				if (indivs[i].xs[j] < bound[j][0])
 				{
@@ -387,12 +413,12 @@ namespace opt
 				{
 					indivs[i].xs[j] = bound[j][1];
 				}
-				// ¸üĞÂËÙ¶È
+				// æ›´æ–°é€Ÿåº¦
 				indivs[i].vs[j] = temp;
 			}
 		}
 
-		// ¸üĞÂÁ£×ÓÊÊÓ¦¶È
+		// æ›´æ–°ç²’å­é€‚åº”åº¦
 		for (int i = 0; i < groupSize; i++)
 		{
 			indivs[i].fitness = callFitFunc(indivs[i].xs, opt::make_index_seq<sizeof...(Args)>());
@@ -406,30 +432,30 @@ namespace opt
 			}
 		}
 
-		std::size_t bestIndex = this->findBest();                    // Ñ°ÕÒµ±Ç°Á£×ÓÈº×îÓÅ¸öÌå
-		bestIndivs.push_back(indivs[bestIndex]);                     // ¼ÇÂ¼×îÓÅ½â
+		std::size_t bestIndex = this->findBest();                    // å¯»æ‰¾å½“å‰ç²’å­ç¾¤æœ€ä¼˜ä¸ªä½“
+		bestIndivs.push_back(indivs[bestIndex]);                     // è®°å½•æœ€ä¼˜è§£
 
-		if (indivs[bestIndex].fitness > best_indiv.fitness)          // ×îÓÅ¸öÌåÌå
+		if (indivs[bestIndex].fitness > best_indiv.fitness)          // æœ€ä¼˜ä¸ªä½“ä½“
 		{
 			best_indiv = indivs[bestIndex];
 		}
 	}
 
-	// ¸üĞÂÁ£×ÓÈºÍ£Ö¹×´Ì¬
+	// æ›´æ–°ç²’å­ç¾¤åœæ­¢çŠ¶æ€
 	template<class R, class ...Args>
 	void PSO<R(Args...)>::updateStopState()
 	{
-		// µü´ú´ÎÊı¼ÓÒ»
+		// è¿­ä»£æ¬¡æ•°åŠ ä¸€
 		group_state.nGene++;
 
-		// ¼ÇÂ¼µ±Ç°Ê±¼ä
+		// è®°å½•å½“å‰æ—¶é—´
 		group_state.nowTime = std::chrono::steady_clock::now();
 
-		// ÊÇ·ñ´ïµ½×î´óµü´úÊ±¼ä
+		// æ˜¯å¦è¾¾åˆ°æœ€å¤§è¿­ä»£æ—¶é—´
 		std::chrono::duration<double> evolTime = group_state.nowTime - group_state.startTime;
-		group_state.time = evolTime.count(); // Ãë
+		group_state.time = evolTime.count(); // ç§’
 
-		// ÅĞ¶Ï×îÓÅ¸öÌåfitnessÖµ½ÏÉÏÒ»´úµÄ²¨¶¯Çé¿ö
+		// åˆ¤æ–­æœ€ä¼˜ä¸ªä½“fitnesså€¼è¾ƒä¸Šä¸€ä»£çš„æ³¢åŠ¨æƒ…å†µ
 		if (abs(bestIndivs[group_state.nGene - 1].fitness - bestIndivs[group_state.nGene].fitness) <= group_state.stopTol)
 		{
 			group_state.count++;
@@ -440,7 +466,76 @@ namespace opt
 		}
 	}
 
-	// µ÷ÓÃÊÊÓ¦¶Èº¯Êı
+	// è¿›åŒ–è¿­ä»£(å•çº¿ç¨‹æ¨¡å¼)
+	template<class R, class ...Args>
+	void PSO<R(Args...)>::run()
+	{
+		while (true)
+		{
+			iter();                               // è¿›è¡Œä¸€æ¬¡è¿­ä»£
+			updateStopState();                    // æ›´æ–°åœæ­¢çŠ¶æ€
+
+			// è°ƒç”¨å¤–éƒ¨ç›‘å¬å‡½æ•°
+			if (monitor)
+			{
+				PSO_Info pso_info(group_state.time, group_state.nGene, best_indiv);
+				monitor(pso_info);
+			}
+
+			// åˆ¤æ–­æ˜¯å¦åˆ°è¾¾åœæ­¢æ¡ä»¶
+			if (flushStopFlag())
+			{
+				return;
+			}
+
+			// æ˜¯å¦æš‚åœè¿­ä»£
+			if (group_state.sleep.signal == true)
+			{
+				group_state.sleep.result = true;
+				thread_sync->cv.notify_all();
+			}
+
+			// æ˜¯å¦æš‚åœè¿­ä»£(ä¸ºä¿è¯æ•°æ®ä¸€è‡´æ€§ï¼Œéœ€åœ¨ä¸€æ¬¡å®Œæ•´è¿­ä»£åpause)
+			{
+				std::unique_lock<std::mutex> lck(thread_sync->mtx);
+				thread_sync->cv.wait(lck, [this]() { return !(this->group_state.sleep.signal); });
+			}
+		}
+	}
+
+	// åˆ¤æ–­æ˜¯å¦ç»“æŸè¿­ä»£
+	template<class R, class ...Args>
+	bool PSO<R(Args...)>::flushStopFlag()
+	{
+		// Stop Code : -1-æœªå¼€å§‹è¿­ä»£; 0-æ­£åœ¨è¿­ä»£; 1-è¾¾åˆ°æœ€å¤§è¿­ä»£æ¬¡æ•°; 2-è¾¾åˆ°æœ€å¤§è¿­ä»£æ—¶é—´; 3-æœ€ä¼˜è§£æ”¶æ•›äºç¨³å®šå€¼; 4-äººä¸ºåœæ­¢è¿­ä»£
+
+		// æ˜¯å¦è¾¾åˆ°æœ€å¤§è¿­ä»£æ¬¡æ•°
+		if (group_state.setMaxGeneFlag && group_state.nGene >= group_state.maxGene)
+		{
+			group_state.stopCode = 1;
+		}
+
+		if (group_state.setRuntimeFlag && group_state.time >= group_state.maxRuntime.value)
+		{
+			group_state.stopCode = 2;
+		}
+
+		// æ˜¯å¦è¿ç»­5æ¬¡æœ€ä¼˜è§£çš„æ³¢åŠ¨å°äºåœæ­¢è¯¯å·®
+		if (group_state.setStopTolFlag && group_state.count == group_state.converCount)
+		{
+			group_state.stopCode = 3;
+		}
+
+		// æ ¹æ®stop codeåˆ¤æ–­ç§ç¾¤æ˜¯å¦åœæ­¢è¿­ä»£
+		if (group_state.stopCode != -1 && group_state.stopCode != 0)
+		{
+			group_state.stopFlag = true;
+		}
+
+		return group_state.stopFlag;
+	}
+
+	// è°ƒç”¨é€‚åº”åº¦å‡½æ•°
 	template<class R, class... Args>
 	template<std::size_t... I>
 	inline R PSO<R(Args...)>::callFitFunc(double* args, const opt::index_seq<I...>&)
