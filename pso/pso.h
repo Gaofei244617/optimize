@@ -20,6 +20,7 @@ namespace opt
     class PSO<R(Args...)>
     {
         using Bound = std::initializer_list<std::initializer_list<double>>;
+        friend class PSOThreadSync<R, Args...>;
 
     private:
         std::size_t groupSize;                                                // 粒子数量
@@ -74,9 +75,10 @@ namespace opt
         R callFitFunc(double* args, const opt::index_seq<I...>&);              // 调用适应度函数数
 
         std::size_t findBest();                                                // 寻找最优个体
-        void iter();                                                           // 进行一次迭代
+        void iter(const std::size_t thread_id);                                // 进行一次迭代
         void updateStopState();                                                // 更新粒子群停止状态
         void run();
+        void run_parallel(const std::size_t thread_id);
         bool flushStopFlag();                                                  // 判断是否结束迭代
     };
 
@@ -220,7 +222,9 @@ namespace opt
     template<class R, class ...Args>
     void PSO<R(Args...)>::setThreadNum(const std::size_t NUM)
     {
-        if (NUM > 1)
+        // 需要确保种群未开始迭代
+
+        if (NUM >= 1)
         {
             thread_sync->setThreadNum(NUM);
         }
@@ -364,10 +368,10 @@ namespace opt
 
             if (thread_sync->threadNum > 1) // 多线程模式
             {
-                // 构造种群交叉线程组
+                // 构造粒子群线程组
                 for (std::size_t i = 0; i < thread_sync->threadNum; i++)
                 {
-                    //vec_run.emplace_back(&GAGroup<R(Args...)>::run_parallel, this, i);
+                    vec_run.emplace_back(&PSO<R(Args...)>::run_parallel, this, i);
                 }
             }
             else // 单线程模式
@@ -470,7 +474,7 @@ namespace opt
 
     // 进行一次迭代
     template<class R, class ...Args>
-    void PSO<R(Args...)>::iter()
+    void PSO<R(Args...)>::iter(const std::size_t thread_id)
     {
         double weight = reweight(group_state.nGene + 1);         // 惯性系数
 
@@ -492,7 +496,7 @@ namespace opt
         {
             V_max = 0.15 * (bound[j][1] - bound[j][0]);
 
-            for (std::size_t i = 0; i < groupSize; i++)
+            for (std::size_t i = thread_id; i < groupSize; i += thread_sync->threadNum)
             {
                 r1 = opt::random_real(0, 1);
                 r2 = opt::random_real(0, 1);
@@ -528,7 +532,7 @@ namespace opt
         }
 
         // 更新粒子适应度
-        for (std::size_t i = 0; i < groupSize; i++)
+        for (std::size_t i = thread_id; i < groupSize; i += thread_sync->threadNum)
         {
             indivs[i].fitness = callFitFunc(indivs[i].xs, opt::make_index_seq<sizeof...(Args)>());
             double best_fit = callFitFunc(indivs[i].best_xs, opt::make_index_seq<sizeof...(Args)>());
@@ -581,7 +585,7 @@ namespace opt
     {
         while (true)
         {
-            iter();                               // 进行一次迭代
+            iter(0);                              // 进行一次迭代
             updateStopState();                    // 更新停止状态
 
             // 调用外部监听函数
@@ -609,6 +613,33 @@ namespace opt
                 std::unique_lock<std::mutex> lck(thread_sync->mtx);
                 thread_sync->cv.wait(lck, [this]() { return !(this->group_state.sleep.signal); });
             }
+        }
+    }
+
+    // 进化迭代(多线程模式)
+    template<class R, class ...Args>
+    void PSO<R(Args...)>::run_parallel(const std::size_t thread_id)
+    {
+        while (true)
+        {
+            // 进行一次迭代
+            iter(thread_id);
+
+            // 线程同步
+            thread_sync->mtx.lock();
+            thread_sync->iter_sync(thread_id);
+            thread_sync->mtx.unlock();
+
+            thread_sync->cv.notify_all();
+
+            {
+                std::unique_lock<std::mutex> lck(thread_sync->mtx);
+                thread_sync->cv.wait(lck, [this, &thread_id]() {
+                    return !(this->thread_sync->iter_flag[thread_id]) && this->thread_sync->iter_ready;
+                    });
+            }
+
+            if (group_state.stopFlag == true) { return; }
         }
     }
 

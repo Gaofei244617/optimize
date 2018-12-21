@@ -23,13 +23,13 @@ void pso_out(const PSO<T>& pso)
 
 void pso_test()
 {
-    auto a = opt::createPSO(test_Func2, 50);
+    auto a = opt::createPSO(test_Func2, 5);
 
     a.setBoundary({ {0, 25}, {0, 35} });
     a.setMaxGeneration(10);
     //a.setMaxRuntime(Second(0.6));
-    //a.setThreadNum(4);
-    a.setThreadNum(1);
+    a.setThreadNum(4);
+    //a.setThreadNum(1);
 
     a.start();
     a.wait_result();

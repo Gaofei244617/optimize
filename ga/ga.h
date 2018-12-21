@@ -92,12 +92,12 @@ namespace opt
         GAGroup<R(Args...)> clone();                                          // 克隆当前种群
 
     private:
-        void crossover(const int seq);                                        // 交叉(单线程模式)
-        void mutate(const int seq);                                           // 变异(单线程模式)
-        void select(const int seq);                                           // 选择(单线程模式)
+        void crossover(const std::size_t seq);                                // 交叉(单线程模式)
+        void mutate(const std::size_t seq);                                   // 变异(单线程模式)
+        void select(const std::size_t seq);                                   // 选择(单线程模式)
 
         void run();                                                           // 单线程迭代
-        void run_parallel(const int seq);                                     // 并行迭代
+        void run_parallel(const std::size_t seq);                             // 并行迭代
 
         void updateRoulette(const std::size_t size);                          // 更新轮盘赌刻度线
         void updateStopState();                                               // 更新种群停止状态
@@ -309,7 +309,7 @@ namespace opt
     template<class R, class... Args>
     void GAGroup<R(Args...)>::setThreadNum(const std::size_t NUM)
     {
-        if (NUM > 1)
+        if (NUM >= 1)
         {
             thread_sync->setThreadNum(NUM);
         }
@@ -459,7 +459,7 @@ namespace opt
 
     // 进化迭代(多线程模式)
     template<class R, class ...Args>
-    void GAGroup<R(Args...)>::run_parallel(const int seq)
+    void GAGroup<R(Args...)>::run_parallel(const std::size_t seq)
     {
         while (true)
         {
@@ -656,7 +656,7 @@ namespace opt
 
     // 交叉(单线程模式)
     template<class R, class... Args>
-    void GAGroup<R(Args...)>::crossover(const int seq)
+    void GAGroup<R(Args...)>::crossover(const std::size_t seq)
     {
         int Index_M = 0;             // 父个体
         int Index_F = 0;             // 母个体
@@ -703,7 +703,7 @@ namespace opt
 
     // 变异(单线程模式)
     template<class R, class... Args>
-    void GAGroup<R(Args...)>::mutate(const int seq)
+    void GAGroup<R(Args...)>::mutate(const std::size_t seq)
     {
         double rand_num = 0; // 随机数
 
@@ -730,7 +730,7 @@ namespace opt
 
     // 选择(单线程模式)
     template<class R, class... Args>
-    void GAGroup<R(Args...)>::select(const int seq)
+    void GAGroup<R(Args...)>::select(const std::size_t seq)
     {
         int thread_num = thread_sync->threadNum; // 线程数
 

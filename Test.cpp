@@ -6,7 +6,7 @@
 int main()
 {
     //ga_test();              // GA
-    pso_test();             // PSO
+    pso_test();           // PSO
 
     system("pause");
     return 0;
