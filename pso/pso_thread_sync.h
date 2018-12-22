@@ -8,6 +8,8 @@
 #include <tuple>
 #include "bool_array.h"
 #include "pso_info.h"
+/////
+#include <iostream>
 
 namespace opt
 {
@@ -22,7 +24,7 @@ namespace opt
     private:
         std::mutex mtx;                                   // 互斥量
         std::condition_variable cv;                       // 条件变量, 用于线程同步
-        bool iter_ready;                                  // 交叉操作标志
+        //bool iter_ready;                                  // 交叉操作标志
         std::size_t threadNum;                            // 并行计算使用的线程数
         bool_array iter_flag;                             // 并行计算: 线程状态标志
         PSO<R(Args...)>* pso;                             // 同步器关联的粒子群
@@ -30,16 +32,14 @@ namespace opt
     public:
         // 常规构造
         PSOThreadSync(PSO<R(Args...)>* ptr)
-            :iter_ready(false),
-            threadNum(1),
+            :threadNum(1),
             iter_flag(threadNum),
             pso(ptr)
         {}
 
         // 复制构造
         PSOThreadSync(const PSOThreadSync& other, PSO<R(Args...)>* ptr)
-            :iter_ready(other.iter_ready),
-            threadNum(other.threadNum),
+            :threadNum(other.threadNum),
             iter_flag(other.iter_flag),
             pso(ptr)
         {}
@@ -67,18 +67,22 @@ namespace opt
     void PSOThreadSync<R, Args...>::iter_sync(const std::size_t thread_id)
     {
         iter_flag[thread_id] = true;
-        iter_ready = false;
 
         // 若迭代线程组全部运行完
         if (iter_flag.is_all_true())
         {
-            // 更新粒子群停止状态
+            //std::cout << "A" << thread_id << std::endl;
+            // 更新全局最优解
+            pso->updateGlobalBest();
+
+            // 更新粒子群状态
             pso->updateStopState();
 
+            // 更新stop code 与 stop flag
             pso->flushStopFlag();
 
             iter_flag.set_all(false);
-            iter_ready = true;
+            //iter_ready = true;
 
             if (pso->group_state.sleep.signal == true)
             {
@@ -91,6 +95,10 @@ namespace opt
                 PSO_Info pso_info(pso->group_state.time, pso->group_state.nGene, pso->best_indiv);
                 pso->monitor(pso_info);
             }
+        }
+        else
+        {
+            //iter_ready = false;
         }
     }
 }

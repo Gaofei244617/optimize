@@ -146,9 +146,10 @@ namespace opt
             // 更新轮盘赌刻度线
             ga->updateRoulette(ga->groupSize);
 
-            // 更新GA种群停止状态
+            // 更新GA种群状态
             ga->updateStopState();
 
+            // 更新stop code 与 stop flag
             ga->flushStopFlag();
 
             sel_flag.set_all(false);

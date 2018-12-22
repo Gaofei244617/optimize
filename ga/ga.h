@@ -476,6 +476,7 @@ namespace opt
             {
                 std::unique_lock<std::mutex> lck(thread_sync->mtx);
                 thread_sync->cv.wait(lck, [this, &seq]() {
+                    // 除非当前线程尚未执行变异操作，且已被允许进行变异操作，否则当前线程挂起等待被唤醒
                     return !(this->thread_sync->mut_flag[seq]) && this->thread_sync->mutReady;
                     });
             }
@@ -492,6 +493,7 @@ namespace opt
             {
                 std::unique_lock<std::mutex> lck(thread_sync->mtx);
                 thread_sync->cv.wait(lck, [this, &seq]() {
+                    // 除非当前线程尚未执行选择操作，且已被允许进行选择迭代，否则当前线程挂起等待被唤醒
                     return !(this->thread_sync->sel_flag[seq]) && this->thread_sync->selectReady;
                     });
             }
@@ -520,12 +522,14 @@ namespace opt
 
             thread_sync->select_sync(seq);
             thread_sync->mtx.unlock();
+
             thread_sync->cv.notify_all();
 
             // 为保证数据一致性，需在一次完整迭代后pause
             {
                 std::unique_lock<std::mutex> lck(thread_sync->mtx);
                 thread_sync->cv.wait(lck, [this, &seq]() {
+                    // 除非当前线程尚未执行交叉操作，且已被允许进行交叉迭代，且未收到休眠请求，否则当前线程挂起等待被唤醒
                     return !(this->thread_sync->cross_flag[seq]) && this->thread_sync->crossReady && !(this->group_state.sleep.signal);
                     });
             }

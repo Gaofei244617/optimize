@@ -11,6 +11,9 @@
 #include "range_random.h"
 #include "pso_thread_sync.h"
 
+//////////////
+#include <iostream>
+
 namespace opt
 {
     template<class F> class PSO;
@@ -76,6 +79,7 @@ namespace opt
 
         std::size_t findBest();                                                // 寻找最优个体
         void iter(const std::size_t thread_id);                                // 进行一次迭代
+        void updateGlobalBest();                                               // 更新全局最优解
         void updateStopState();                                                // 更新粒子群停止状态
         void run();
         void run_parallel(const std::size_t thread_id);
@@ -343,6 +347,9 @@ namespace opt
 
             // 4.设置初始化标志位
             group_state.initFlag = true;
+
+            //// 5.初始化线程同步器
+            //thread_sync->iter_ready = true;
         }
         else
         {
@@ -536,6 +543,7 @@ namespace opt
         {
             indivs[i].fitness = callFitFunc(indivs[i].xs, opt::make_index_seq<sizeof...(Args)>());
             double best_fit = callFitFunc(indivs[i].best_xs, opt::make_index_seq<sizeof...(Args)>());
+            // 更新单个粒子经历的最优解
             if (indivs[i].fitness > best_fit)
             {
                 for (std::size_t j = 0; j < nVars; j++)
@@ -544,7 +552,12 @@ namespace opt
                 }
             }
         }
+    }
 
+    // 更新全局最优解
+    template<class R, class ...Args>
+    void PSO<R(Args...)>::updateGlobalBest()
+    {
         std::size_t bestIndex = this->findBest();                    // 寻找当前粒子群最优个体
         bestIndivs.push_back(indivs[bestIndex]);                     // 记录最优解
 
@@ -586,6 +599,7 @@ namespace opt
         while (true)
         {
             iter(0);                              // 进行一次迭代
+            updateGlobalBest();                   // 更新全局最优解
             updateStopState();                    // 更新停止状态
 
             // 调用外部监听函数
@@ -632,14 +646,19 @@ namespace opt
 
             thread_sync->cv.notify_all();
 
+            // 为保证数据一致性，需在一次完整迭代后pause
             {
                 std::unique_lock<std::mutex> lck(thread_sync->mtx);
                 thread_sync->cv.wait(lck, [this, &thread_id]() {
-                    return !(this->thread_sync->iter_flag[thread_id]) && this->thread_sync->iter_ready;
+                    // 除非线程池中当前线程未进行迭代，且未收到休眠请求，否则在此处挂起线程等待被唤醒
+                    return !(this->thread_sync->iter_flag[thread_id]) && !(this->group_state.sleep.signal);
                     });
             }
 
-            if (group_state.stopFlag == true) { return; }
+            if (group_state.stopFlag == true)
+            {
+                return;
+            }
         }
     }
 

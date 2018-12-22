@@ -1,129 +1,128 @@
-#include "pso_individual.h"
+ï»¿#include "pso_individual.h"
 #include <string>
 
 namespace opt
 {
-	// ¹¹Ôìº¯Êı£¬n:±äÁ¿¸öÊı£¬str:Á¥ÊôµÄÖÖÈº
-	PSO_Individual::PSO_Individual() 
-		: nVars(0), 
-		xs(nullptr), 
-		vs(nullptr),
-		best_xs(nullptr),
-		fitness(0)
-	{
-	}
+    // æ„é€ å‡½æ•°ï¼Œn:å˜é‡ä¸ªæ•°ï¼Œstr:éš¶å±çš„ç§ç¾¤
+    PSO_Individual::PSO_Individual()
+        : nVars(0),
+        xs(nullptr),
+        vs(nullptr),
+        best_xs(nullptr),
+        fitness(0)
+    {}
 
-	// ¹¹Ôìº¯Êı£¬n:±äÁ¿¸öÊı£¬str:Á¥ÊôµÄÖÖÈº
-	PSO_Individual::PSO_Individual(const std::size_t n) 
-		: nVars(n), 
-		fitness(0)
-	{
-		xs = new double[n]();
-		vs = new double[n]();
-		best_xs = new double[n]();
-	}
+    // æ„é€ å‡½æ•°ï¼Œn:å˜é‡ä¸ªæ•°ï¼Œstr:éš¶å±çš„ç§ç¾¤
+    PSO_Individual::PSO_Individual(const std::size_t n)
+        : nVars(n),
+        fitness(0)
+    {
+        xs = new double[n]();
+        vs = new double[n]();
+        best_xs = new double[n]();
+    }
 
-	// ¹¹Ôìº¯Êı
-	PSO_Individual::PSO_Individual(const std::initializer_list<double>& list) 
-		: nVars(list.size()), 
-		fitness(0)
-	{
-		xs = new double[nVars]();
-		vs = new double[nVars]();
-		best_xs = new double[nVars]();
+    // æ„é€ å‡½æ•°
+    PSO_Individual::PSO_Individual(const std::initializer_list<double>& list)
+        : nVars(list.size()),
+        fitness(0)
+    {
+        xs = new double[nVars]();
+        vs = new double[nVars]();
+        best_xs = new double[nVars]();
 
-		for (std::size_t i = 0; i < nVars; i++)
-		{
-			xs[i] = *(list.begin() + i);
-			best_xs[i] = xs[i];
-		}
-	}
+        for (std::size_t i = 0; i < nVars; i++)
+        {
+            xs[i] = *(list.begin() + i);
+            best_xs[i] = xs[i];
+        }
+    }
 
-	// ¸´ÖÆ¹¹Ôì
-	PSO_Individual::PSO_Individual(const PSO_Individual& other) : nVars(other.nVars), fitness(other.fitness)
-	{
-		xs = new double[other.nVars];
-		vs = new double[other.nVars];
-		best_xs = new double[other.nVars];
+    // å¤åˆ¶æ„é€ 
+    PSO_Individual::PSO_Individual(const PSO_Individual& other) : nVars(other.nVars), fitness(other.fitness)
+    {
+        xs = new double[other.nVars];
+        vs = new double[other.nVars];
+        best_xs = new double[other.nVars];
 
-		for (std::size_t i = 0; i < nVars; i++)
-		{
-			xs[i] = (other.xs[i]);
-			vs[i] = (other.vs[i]);
-			best_xs[i] = (other.best_xs[i]);
-		}
-	}
+        for (std::size_t i = 0; i < nVars; i++)
+        {
+            xs[i] = (other.xs[i]);
+            vs[i] = (other.vs[i]);
+            best_xs[i] = (other.best_xs[i]);
+        }
+    }
 
-	// ÒÆ¶¯¹¹Ôì
-	PSO_Individual::PSO_Individual(PSO_Individual&& other)noexcept
-		:nVars(other.nVars),
-		xs(other.xs),
-		vs(other.vs),
-		best_xs(other.best_xs),
-		fitness(other.fitness)
-	{
-		other.xs = nullptr;
-		other.vs = nullptr;
-		other.best_xs = nullptr;
-	}
+    // ç§»åŠ¨æ„é€ 
+    PSO_Individual::PSO_Individual(PSO_Individual&& other)noexcept
+        :nVars(other.nVars),
+        xs(other.xs),
+        vs(other.vs),
+        best_xs(other.best_xs),
+        fitness(other.fitness)
+    {
+        other.xs = nullptr;
+        other.vs = nullptr;
+        other.best_xs = nullptr;
+    }
 
-	// ¸³Öµº¯Êı
-	PSO_Individual& PSO_Individual::operator=(const PSO_Individual& other)noexcept
-	{
-		// ±ÜÃâ×Ô¸³Öµ
-		if (this != &other)
-		{
-			// Èô±äÁ¿¸öÊı²»ÏàµÈ£¬Å×³öÒì³£
-			if (nVars != other.nVars)
-			{
-				delete[] xs;
-				delete[] vs;
-				delete[] best_xs;
+    // èµ‹å€¼å‡½æ•°
+    PSO_Individual& PSO_Individual::operator=(const PSO_Individual& other)noexcept
+    {
+        // é¿å…è‡ªèµ‹å€¼
+        if (this != &other)
+        {
+            // è‹¥å˜é‡ä¸ªæ•°ä¸ç›¸ç­‰ï¼ŒæŠ›å‡ºå¼‚å¸¸
+            if (nVars != other.nVars)
+            {
+                delete[] xs;
+                delete[] vs;
+                delete[] best_xs;
 
-				xs = new double[other.nVars]();
-				vs = new double[other.nVars]();
-				best_xs = new double[other.nVars]();
+                xs = new double[other.nVars]();
+                vs = new double[other.nVars]();
+                best_xs = new double[other.nVars]();
 
-				nVars = other.nVars;
-			}
+                nVars = other.nVars;
+            }
 
-			// ¿½±´¸÷¸ö±äÁ¿µÄÖµ
-			for (std::size_t i = 0; i < nVars; i++)
-			{
-				xs[i] = (other.xs)[i];
-				vs[i] = (other.vs)[i];
-				best_xs[i] = (other.best_xs)[i];
-			}
-			fitness = other.fitness;
-		}
-		return *this;
-	}
+            // æ‹·è´å„ä¸ªå˜é‡çš„å€¼
+            for (std::size_t i = 0; i < nVars; i++)
+            {
+                xs[i] = (other.xs)[i];
+                vs[i] = (other.vs)[i];
+                best_xs[i] = (other.best_xs)[i];
+            }
+            fitness = other.fitness;
+        }
+        return *this;
+    }
 
-	// ÒÆ¶¯¸³Öµ
-	PSO_Individual& PSO_Individual::operator=(PSO_Individual&& other)noexcept
-	{
-		// ±ÜÃâ×Ô¸³Öµ
-		if (this != &other)
-		{
-			nVars = other.nVars;
-			xs = other.xs;
-			vs = other.vs;
-			best_xs = other.best_xs;
-			other.xs = nullptr;
-			other.vs = nullptr;
-			other.best_xs = nullptr;
-			other.nVars = 0;
-			fitness = other.fitness;
-			other.fitness = 0;
-		}
-		return *this;
-	}
+    // ç§»åŠ¨èµ‹å€¼
+    PSO_Individual& PSO_Individual::operator=(PSO_Individual&& other)noexcept
+    {
+        // é¿å…è‡ªèµ‹å€¼
+        if (this != &other)
+        {
+            nVars = other.nVars;
+            xs = other.xs;
+            vs = other.vs;
+            best_xs = other.best_xs;
+            other.xs = nullptr;
+            other.vs = nullptr;
+            other.best_xs = nullptr;
+            other.nVars = 0;
+            fitness = other.fitness;
+            other.fitness = 0;
+        }
+        return *this;
+    }
 
-	// Îö¹¹º¯Êı
-	PSO_Individual::~PSO_Individual()
-	{
-		delete[] xs;
-		delete[] vs;
-		delete[] best_xs;
-	}
+    // ææ„å‡½æ•°
+    PSO_Individual::~PSO_Individual()
+    {
+        delete[] xs;
+        delete[] vs;
+        delete[] best_xs;
+    }
 }

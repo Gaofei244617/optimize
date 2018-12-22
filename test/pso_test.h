@@ -36,8 +36,8 @@ void pso_test()
 
     pso_out(a);
 
-    // auto b = a.clone();
-    // PSO<double(double, double)> c(b);
+    auto b = a.clone();
+    PSO<double(double, double)> c(b);
 }
 
 #endif

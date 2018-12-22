@@ -64,20 +64,20 @@ void ga_test()
     a.setMaxGeneration(10);
     //a.setMaxRuntime(Second(0.6));
 
-    //a.setThreadNum(4);
-    a.setThreadNum(1);
+    a.setThreadNum(4);
+    //a.setThreadNum(1);
 
     a.setResize([](std::size_t n) { return std::size_t((10 - n) / 10.0 * 500000); });
 
     vector<double> vec;
 
-    //a.setMonitor(std::bind(monitor, std::placeholders::_1, vec));
-    a.setMonitor([&vec](const GA_Info& indiv) {
-        cout << "***********************************" << endl;
-        cout << "NGen: " << indiv.NGen << endl;
-        cout << "Time: " << indiv.time << endl;
-        vec.push_back(2.71);
-        });
+    ////a.setMonitor(std::bind(monitor, std::placeholders::_1, vec));
+    //a.setMonitor([&vec](const GA_Info& indiv) {
+    //    cout << "***********************************" << endl;
+    //    cout << "NGen: " << indiv.NGen << endl;
+    //    cout << "Time: " << indiv.time << endl;
+    //    vec.push_back(2.71);
+    //    });
 
     // profile
     ULONGLONG start = GetTickCount64();
