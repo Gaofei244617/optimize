@@ -309,13 +309,17 @@ namespace opt
     template<class R, class... Args>
     void GAGroup<R(Args...)>::setThreadNum(const std::size_t NUM)
     {
-        if (NUM >= 1)
+        // 需在开始迭代前设置线程数量
+        if (group_state == -1)
         {
-            thread_sync->setThreadNum(NUM);
-        }
-        if (NUM < 1)
-        {
-            throw std::string("Thread number error.");
+            if (NUM >= 1)
+            {
+                thread_sync->setThreadNum(NUM);
+            }
+            if (NUM < 1)
+            {
+                throw std::string("Thread number error.");
+            }
         }
     }
 
