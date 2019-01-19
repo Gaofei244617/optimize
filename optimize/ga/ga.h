@@ -10,14 +10,14 @@
 #include <functional>
 
 #include "ga_individual.h"
-#include "range_random.h"
-#include "roulette.h"
-#include "opt_time.h"
+#include "..\range_random.h"
+#include "..\roulette.h"
+#include "..\opt_time.h"
 #include "ga_state.h"
 #include "cross_factor.h"
 #include "mutate_factor.h"
 #include "ga_thread_sync.h"
-#include "index_seq.h"
+#include "..\index_seq.h"
 #include "ga_info.h"
 
 ////////
@@ -310,7 +310,7 @@ namespace opt
     void GAGroup<R(Args...)>::setThreadNum(const std::size_t NUM)
     {
         // 需在开始迭代前设置线程数量
-        if (group_state == -1)
+        if (group_state.stopCode == -1)
         {
             if (NUM >= 1)
             {

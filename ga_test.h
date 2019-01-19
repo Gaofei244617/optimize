@@ -3,8 +3,8 @@
 
 #include <iostream>
 #include <windows.h>
-#include "..\opt_time.h"
-#include "..\optimize.h"
+#include "optimize\opt_time.h"
+#include "optimize\optimize.h"
 #include "fit_funcs.h"
 
 using namespace std;

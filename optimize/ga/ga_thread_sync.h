@@ -6,7 +6,7 @@
 #include <utility>
 #include <condition_variable>
 #include <tuple>
-#include "bool_array.h"
+#include "..\bool_array.h"
 #include "ga_info.h"
 
 namespace opt

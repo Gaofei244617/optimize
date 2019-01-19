@@ -3,12 +3,12 @@
 
 #include <chrono>
 #include <vector>
-#include "opt_time.h"
+#include "..\opt_time.h"
 #include "pso_individual.h"
 #include "pso_state.h"
-#include "index_seq.h"
+#include "..\index_seq.h"
 #include "pso_info.h"
-#include "range_random.h"
+#include "..\range_random.h"
 #include "pso_thread_sync.h"
 
 //////////////
@@ -227,7 +227,7 @@ namespace opt
     void PSO<R(Args...)>::setThreadNum(const std::size_t NUM)
     {
         // 需在开始迭代前设置线程数量
-        if (group_state == -1)
+        if (group_state.stopCode == -1)
         {
             if (NUM >= 1)
             {

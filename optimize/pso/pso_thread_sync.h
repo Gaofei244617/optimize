@@ -6,10 +6,8 @@
 #include <utility>
 #include <condition_variable>
 #include <tuple>
-#include "bool_array.h"
+#include "..\bool_array.h"
 #include "pso_info.h"
-/////
-#include <iostream>
 
 namespace opt
 {
@@ -24,7 +22,6 @@ namespace opt
     private:
         std::mutex mtx;                                   // 互斥量
         std::condition_variable cv;                       // 条件变量, 用于线程同步
-        //bool iter_ready;                                  // 交叉操作标志
         std::size_t threadNum;                            // 并行计算使用的线程数
         bool_array iter_flag;                             // 并行计算: 线程状态标志
         PSO<R(Args...)>* pso;                             // 同步器关联的粒子群
