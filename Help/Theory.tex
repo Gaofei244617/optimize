@@ -1,0 +1,175 @@
+\documentclass[UTF8]{ctexart}
+\usepackage{amsmath}
+\usepackage{fontspec}
+\usepackage{geometry}
+\usepackage{listings}
+
+\geometry{a4paper,left=2.5cm,right=2.5cm,top=2.5cm,bottom=2.5cm}
+\CTEXsetup[format={\large\bfseries}]{section}
+
+\title{优化算法引擎}
+\author{高飞}
+\date{\today}
+
+\begin{document}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+
+\section{简介}
+
+\begin{itemize}
+    \item 优化算法引擎，包含遗传算法（Genetic Algorithm，GA）、粒子群算法（Particle Swarm Optimization，PSO）。
+    \item 编译器需支持C++11及以上标准。    
+\end{itemize}
+
+\section{遗传算法}
+\subsection{遗传算法简介}
+遗传算法（Genetic Algorithm）基本思想是通过模拟自然进化过程搜索最优解，是一种通过模拟达尔文生物进化论的自然选择和遗传学机理的计算模型。遗传算法有$3$个最基本的操作：\textbf{选择，交叉，变异。}
+
+\subsection{算法流程}
+\begin{itemize}
+    \item \textbf{$1.$初始化：}设置迭代停止条件，随机生成$N$个个体作为初始群体$P(0)$。
+    \item \textbf{$2.$个体评价：}计算群体$P(t)$中各个个体的适应度。
+    \item \textbf{$3.$选择运算：}将选择算子作用于群体。选择的目的是把优化的个体直接遗传到下一代或通过配对交叉产生新的个体再遗传到下一代。选择操作是建立在群体中个体的适应度评估基础上的。
+    \item \textbf{$4.$交叉运算：}将交叉算子作用于群体。遗传算法中起核心作用的就是交叉算子。
+    \item \textbf{$5.$变异运算：}将变异算子作用于群体。即是对群体中的个体串的某些基因座上的基因值作变动。群体$P(t)$经过选择、交叉、变异运算之后得到下一代群体$P(t+1)$。
+    \item \textbf{$6.$终止条件判断：}判断是否达到停止条件，若达到，终止计算，否则转到第$2$步。
+\end{itemize}
+
+\textbf{适应度函数的重要性：} 适应度函数的选取直接影响遗传算法的\textbf{收敛速度}以及能否找到最优解。一般而言，适应度函数是由目标函数变换而成的，对目标函数值域的某种映射变换称为适应度的\textbf{尺度变换}（fitness scaling）。
+
+\textbf{适应度函数设计不当有可能出现欺骗问题：}（1）进化初期，个别超常个体控制选择过程；（2）进化末期，个体差异太小导致陷入局部极值。
+
+\subsubsection{交叉（Crossover）}
+\textbf{SBX交叉算子(模拟二进制单点交叉)}
+
+$p_1、p_2$为父代基因，$c_1、c_2$为子代基因, 一对父代基因交叉产生两个子代基因。
+
+$$
+\begin{cases}
+c_1=\dfrac{1}{2}\left[(1+\beta)p_1+(1-\beta)p_2 \right]
+\cr \cr
+c_2=\dfrac{1}{2}\left[(1-\beta)p_1+(1+\beta)p_2 \right]
+\end{cases}
+$$
+
+\noindent 式中$\beta$为\textbf{均匀分布因子}。
+
+$$
+\beta=\begin{cases}
+(2u)^{\frac{1}{\eta_c+1}}, &u\leq 0.5
+\cr \left[\dfrac{1}{2(1-u)}\right]^{\frac{1}{\eta_c+1}}, &u > 0.5
+\end{cases}
+$$
+
+\noindent 上式中$u$是一个位于$[0,1]$区间内的随机数，$\eta_c$为\textbf{交叉分布指数}（大于$0$），推荐为$1$，$\eta_c$越大，子代个体离父代越远。
+
+以上公式满足：$p_1+p_2=c_1+c_2$，$\beta=\left|\dfrac{c_2-c_1}{p_2-p_1}\right|$
+
+\subsubsection{变异（Mutation）}
+
+多项式变异，其变异算子形式是：
+$v_{k}^{\prime}=v_{k}+\delta(u_{k}-l_{k})$
+$v_k$表示一个父个体，$u_k$为基因上限，$l_k$为基因下限。其中：
+
+$$
+\delta=\begin{cases}
+\left[2u+(1-2u)(1-\delta_1)^{\eta_m+1}\right]^{\frac{1}{\eta_m+1}}, &u\leq 0.5
+\cr 
+1-\left[2(1-u)+2(u-0.5)(1-\delta_2)^{\eta_m+1}\right]^{\frac{1}{\eta_m+1}}, &u > 0.5
+\end{cases}
+$$
+
+\noindent 式中$\delta_1=\dfrac{v_k-l_k}{u_k-l_k}$，$\delta_2=\dfrac{u_k-v_k}{u_k-l_k}$，$u$是一个位于$[0,1]$区间内的随机数，$\eta_m$是分布指数，推荐为$1$。
+
+\subsubsection{选择（Selection）}
+
+\textbf{轮盘赌选择}
+
+又称比例选择方法。其基本思想是：各个个体被选中的概率与其适应度大小成正比，个体适应度越高，被选中的概率越大。\\
+
+\textbf{具体操作如下：}
+\begin{itemize}
+    \item $1.$ 计算出群体中每个个体的适应度$f(x_i)(i=1,2,...,N)$，$N$为群体大小；
+    \item $2.$ 计算出每个个体被遗传到下一代群体中的概率；
+$$P(x_i)=\frac{f(x_i)}{\sum\limits_{j=1}^{N}f(x_j)}$$
+    \item $3.$ 计算出每个个体的累积概率（$q_i$称为个体$x_i$的累积概率）；
+$$q_i=\sum_{j=1}^{i}P(x_j)$$
+    \item $4.$ 在$[0,1]$区间内产生一个均匀分布的随机数$r$；
+    \item $5.$ 若$r<q_1$，则选择个体$1$，否则，选择个体$k$，使得$q_{k-1}<r≤q_{k}$ 成立；
+    \item $6.$ 重复步骤$4$、$5$共$N$次    
+\end{itemize}
+
+\section{粒子群算法}
+\subsection{算法简介}
+\begin{itemize}
+    \item PSO算法思想源于对鸟/鱼群捕食行为的研究，模拟鸟集群飞行觅食的行为，鸟之间通过集体的协作使群体达到最优目的，是一种基于Swarm Intelligence的优化方法；
+    \item 没有遗传算法的“交叉”(Crossover)和“变异”(Mutation) 操作，它通过追随当前搜索到的最优值来寻找全局最优；
+    \item 与其他现代优化方法相比的一个明显特色是所需要调整的参数很少、简单易行，收敛速度快。    
+\end{itemize}
+
+\subsection{算法流程}
+
+\begin{itemize}
+    \item 第$1$步： 在初始化范围内，对粒子群进行随机初始化，包括随机位置和速度；
+    \item \textbf{第$2$步：}计算每个粒子的适应值；
+    \item \textbf{第$3$步：}更新粒子个体的历史最优位置；
+    \item \textbf{第$4$步：}更新粒子群体的历史最优位置；
+    \item \textbf{第$5$步：}更新粒子的速度和位置；
+    \item \textbf{第$6$步：}若未达到终止条件，则转第$2$步；    
+\end{itemize}
+
+\subsection{基本原理}
+\textbf{$D$维空间有$N$个粒子：}
+\begin{itemize}
+    \item 粒子$i$位置：$X_i = (x_{i1},x_{i2},...,x_{iD})$
+    \item 粒子$i$速度：$V_i = (v_{i1},v_{i2},...,v_{iD})$
+    \item 粒子$i$经历过的最好位置：$P_i = (p_{i1},p_{i2},...,p_{iD})$
+    \item 种群所经历过的最好位置：$G = (g_1,g_2,...,g_D)$    
+\end{itemize}
+
+\textbf{Note}：第$d$维位置变化范围：$\left[X_{min,d},X_{max,d}\right]$，速度变化范围：$\left[-V_{max,d},V_{max,d}\right]$。若超出边界，则该维的速度或位置被限制为该维最大速度或边界位置。
+
+\textbf{粒子$i$的第$d$维速度更新公式(标准PSO)：}
+$$ v_{id}^{k}=wv_{id}^{k-1}+c_1r_{1d}\left(p_{id}-x_{id}^{k-1}\right)+c_2r_{2d}\left(g_d-x_{id}^{k-1}\right), 其中i \in [1,N], d \in [1,D] $$
+
+\textbf{粒子$i$的第$d$维位置更新公式：}
+$$ x_{id}^{k} = x_{id}^{k-1} + v_{id}^{k-1} $$
+\begin{itemize}
+    \item $v_{id}^{k}$——第$k$次迭代，粒子$i$飞行速度矢量的第$d$维分量；
+    \item $x_{id}^{k}$——第$k$次迭代，粒子$i$位置矢量的第$d$维分量；
+    \item $c_1,c_2$——学习因子，也称加速常数(acceleration constant)，调节学习最大步长，一般取值范围是$\left[0,4\right]$，通常取$c_1=c_2=2$；
+    \item $r_{1d},r_{2d}$——两个随机数，取值分为$\left[0,1\right]$，以增加搜索随机性；
+    \item $w$——惯性权重，非负数，调节对解空间的搜索范围；
+\end{itemize}
+
+\noindent \textbf{粒子速度更新公式包含三部分：}
+\begin{itemize}
+    \item 第一部分为\textbf{“惯性部分”} ，即对粒子先前速度的记忆；
+    \item 第二部分为\textbf{“自我认知”} 部分，可理解为粒子$i$当前位置与自己最好位置之间的距离；
+    \item 第三部分为\textbf{“社会经验”} 部分，表示粒子间的信息共享与合作，可理解为粒子$i$当前位置与群体最好位置之间的距离。   
+\end{itemize}
+
+$1$. 群体大小$N$是一个整数，$N$很小时陷入局部最优解的可能性很大；$N$很大时PSO的优化能力很好，但是当群体数目增长至一定水平时，再增长将不再有显著作用，而且数目越大计算量也越大。群体规模$N$一般取$20 \sim 40$，对较难或特定类别的问题可以取到$100 \sim 200$。
+
+$2$. 粒子群的最大速度$V_{max}$对维护算法的探索能力与开发能力的平衡很重要，$V_{max}$较大时，探索能力强，但粒子容易越过最优解；$V_{max}$较小时，开发能力强，但是容易陷入局部最优解。$V_{max}$一般设为每维变量变化范围的$10\% \sim 20\%$。
+  
+$3$. 学习因子$c_2=0$称为\textbf{自我认识型}粒子群算法，即“只有自我，没有社会”，完全没有信息的社会共享，导致算法收敛速度缓慢；学习因子$c_1=0$称为\textbf{无私型}粒子群算法，即“只有社会，没有自我”，会迅速丧失群体多样性，容易陷入局部最优解而无法跳出；$c_1,c_2$都不为$0$，称为\textbf{完全型}粒子群算法，完全型粒子群算法更容易保持收敛速度和搜索效果的均衡，是较好的选择。
+
+\subsection{改进的PSO算法}
+\subsubsection{惯性权重线性递减的粒子群算法(PSO-W)}
+参数$w,c_1,c_2$的选择分别关系粒子速度的$3$个部分：\textbf{惯性部分}、\textbf{自身部分}和\textbf{社会部分}在搜索中的作用。如何选择、优化和调整参数，使得算法既能避免早熟又能比较快的收敛，对工程实践具有重要意义。
+
+惯性权重$w$描述粒子上一代速度对当前代速度的影响。$w$值较大，全局寻优能力强，局部寻优能力弱；反之，则局部寻优能力强。当问题空间较大时，为了在搜索速度和搜索精度之间达到平衡，通常做法是使算法在前期有较高的全局搜索能力以得到合适的种子，而在后期有较高的局部搜索能力以提高收敛精度，所以$w$不宜为一个固定的常数。
+$$w=w_{max}-\left(w_{max}-w_{min}\right)\frac{k}{k_{max}}$$
+$w_{max}$最大惯性权重，$w_{min}$最小惯性权重，$k$当前迭代次数，$k_{max}$为算法迭代总次数。通常$w_{max}$取$0.9$，$w_{min}$取$0.4$。较大的$w$有较好的全局收敛能力，较小的$w$则有较强的局部收敛能力。因此，随着迭代次数的增加，惯性权重$w$应不断减少，从而使得粒子群算法在初期具有较强的全局收敛能力，而晚期具有较强的局部收敛能力。
+
+\subsubsection{带收缩因子的粒子群算法(PSO-X)}
+学习因子$c_1$和$c_2$决定了微粒本身经验信息和其他微粒的经验信息对微粒运行轨迹的影响，反映了微粒群之间的信息交流。设置$c_1$较大的值，会使微粒过多地在局部范围内徘徊，而较大的$c_2$的值，则又会促使微粒过早收敛到局部最小值。微粒有效地控制飞行速度，使算法达到全局探测与局部开采两者间的有效平衡，\textbf{Clerc构造}了引入收缩因子的PSO模型，采用了压缩因子，这种调整方法通过合适选取参数，可确保PSO算法的收敛性，并可取消对速度的边界限制。速度公式如下：
+$$ v_{id}^{k+1}=K\left[ v_{id}^{k}+c_1r_{1d}\left( p_{id}^{k}-x_{id}^{k}\right) + c_2r_{2d}\left( g_{d}^{k}-x_{id}^{k}\right)\right] $$
+$$ K=\frac{2}{\left|2-C-\sqrt{C^2-4C}\right|},C=c_1+c_2,且C>4 $$
+\textbf{$K$为收缩因子。} 通常取$c_1 = c_2 = 2.05$，则$K＝0.7298$。实验表明，与使用惯性权重的PSO算法相比，使用收敛因子的PSO有更快的收敛速度。其实只要恰当的选取$w$和$c_1、c_2$，两种算法是一样的。当惯性权重PSO中取$w = 0.7298$，$c_1 = c_2 = K \times 2.05 = 1.49618$时，\textbf{两种算法等效}， 因此使用收敛因子的PSO可以看作使用惯性权重PSO的特例。恰当的选取算法的参数值可以改善算法的性能。
+ 
+\end{document}
